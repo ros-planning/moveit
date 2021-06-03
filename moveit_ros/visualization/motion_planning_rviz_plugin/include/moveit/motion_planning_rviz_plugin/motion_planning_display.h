@@ -74,6 +74,8 @@ class FloatProperty;
 class RosTopicProperty;
 class EditableEnumProperty;
 class ColorProperty;
+class VectorProperty;
+class QuaternionProperty;
 class MovableText;
 }  // namespace rviz
 
@@ -171,6 +173,7 @@ private Q_SLOTS:
   void changedQueryStartState();
   void changedQueryGoalState();
   void changedQueryMarkerScale();
+  void changedQueryMarkerOffset();
   void changedQueryStartColor();
   void changedQueryGoalColor();
   void changedQueryStartAlpha();
@@ -295,6 +298,9 @@ protected:
   rviz::BoolProperty* query_start_state_property_;
   rviz::BoolProperty* query_goal_state_property_;
   rviz::FloatProperty* query_marker_scale_property_;
+  rviz::Property* query_marker_offset_category_;
+  rviz::VectorProperty*  query_marker_offset_position_property_;
+  rviz::QuaternionProperty* query_marker_offset_orientation_property_;
   rviz::ColorProperty* query_start_color_property_;
   rviz::ColorProperty* query_goal_color_property_;
   rviz::FloatProperty* query_start_alpha_property_;

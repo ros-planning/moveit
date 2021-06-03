@@ -368,19 +368,19 @@ bool InteractionHandler::transformFeedbackPose(const visualization_msgs::Interac
 {
   tpose.header = feedback->header;
   tpose.pose = feedback->pose;
+
+  tf2::Transform tf_tpose;
+
   if (feedback->header.frame_id != planning_frame_)
   {
     if (tf_buffer_)
+    {
       try
       {
         geometry_msgs::PoseStamped spose(tpose);
         // Express feedback (marker) pose in planning frame
         tf_buffer_->transform(tpose, spose, planning_frame_);
-        // Apply inverse of offset to bring feedback pose back into the end-effector support link frame
-        tf2::Transform tf_offset, tf_tpose;
-        tf2::fromMsg(offset, tf_offset);
         tf2::fromMsg(spose.pose, tf_tpose);
-        tf2::toMsg(tf_tpose * tf_offset.inverse(), tpose.pose);
       }
       catch (tf2::TransformException& e)
       {
@@ -388,6 +388,7 @@ bool InteractionHandler::transformFeedbackPose(const visualization_msgs::Interac
                   planning_frame_.c_str());
         return false;
       }
+    }
     else
     {
       ROS_ERROR("Cannot transform from frame '%s' to frame '%s' (no TF instance provided)",
@@ -395,6 +396,16 @@ bool InteractionHandler::transformFeedbackPose(const visualization_msgs::Interac
       return false;
     }
   }
+  else
+  {
+    tf2::fromMsg(tpose.pose, tf_tpose);
+  }
+
+  // Apply inverse of offset to bring feedback pose back into the end-effector support link frame
+  tf2::Transform tf_offset;
+  tf2::fromMsg(offset, tf_offset);
+  tf2::toMsg(tf_tpose * tf_offset.inverse(), tpose.pose);
+
   return true;
 }
 
