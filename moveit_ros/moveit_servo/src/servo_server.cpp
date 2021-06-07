@@ -38,23 +38,15 @@
  */
 
 #include <moveit_servo/servo.h>
+#include <rosparam_shortcuts/rosparam_shortcuts.h>
 
 namespace
 {
 constexpr char LOGNAME[] = "servo_server";
 constexpr char ROS_THREADS = 8;
 
-}  // namespace
-
-int main(int argc, char** argv)
+std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> buildPlanningSceneMonitor(ros::NodeHandle nh)
 {
-  ros::init(argc, argv, LOGNAME);
-  ros::AsyncSpinner spinner(ROS_THREADS);
-  spinner.start();
-
-  ros::NodeHandle nh("~");
-
-  // Load the planning scene monitor
   auto planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
   if (!planning_scene_monitor->getPlanningScene())
   {
@@ -69,6 +61,32 @@ int main(int argc, char** argv)
       planning_scene_monitor::PlanningSceneMonitor::DEFAULT_PLANNING_SCENE_WORLD_TOPIC,
       false /* skip octomap monitor */);
   planning_scene_monitor->startStateMonitor();
+
+  bool provide_planning_scene_service = false;
+  if (!rosparam_shortcuts::get(LOGNAME, nh, "provide_planning_scene_service", provide_planning_scene_service))
+  {
+    ROS_WARN_NAMED(LOGNAME, "provide_planning_scene_service parameter not set, defaulting to false");
+  }
+  if (provide_planning_scene_service)
+  {
+    planning_scene_monitor->providePlanningSceneService();
+  }
+
+  return planning_scene_monitor;
+}
+
+}  // namespace
+
+int main(int argc, char** argv)
+{
+  ros::init(argc, argv, LOGNAME);
+  ros::AsyncSpinner spinner(ROS_THREADS);
+  spinner.start();
+
+  ros::NodeHandle nh("~");
+
+  // Load the planning scene monitor
+  auto planning_scene_monitor = buildPlanningSceneMonitor(nh);
 
   // Create the servo server
   moveit_servo::Servo servo(nh, planning_scene_monitor);
