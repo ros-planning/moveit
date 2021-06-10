@@ -284,7 +284,7 @@ void RobotInteraction::decideActiveEndEffectors(const std::string& group, Intera
   if (smap.first)
   {
     for (const srdf::Model::EndEffector& eef : eefs)
-      if ((jmg->hasLinkModel(eef.parent_link_) || jmg->getName() == eef.parent_group_) &&
+      if ((jmg->hasLinkModel(eef.parent_link_) && (jmg->getName().empty() || jmg->getName() == eef.parent_group_)) &&
           jmg->canSetStateFromIK(eef.parent_link_))
       {
         // We found an end-effector whose parent is the group.
