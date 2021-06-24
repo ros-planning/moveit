@@ -47,12 +47,48 @@ using namespace trajectory_processing;
 class AddTimeOptimalParameterization : public planning_request_adapter::PlanningRequestAdapter
 {
 public:
+  
+  static const std::string RESAMPLE_PARAM_NAME;
+  static const std::string PATH_TOL_PARAM_NAME;
+  static const std::string MIN_ANGLE_PARAM_NAME;
+
   AddTimeOptimalParameterization() : planning_request_adapter::PlanningRequestAdapter()
   {
   }
 
-  void initialize(const ros::NodeHandle& /*nh*/) override
+  void initialize(const ros::NodeHandle& nh) override
   {
+
+    if (nh.getParam(PATH_TOL_PARAM_NAME, path_tolerance))
+    {
+      ROS_INFO_STREAM("Overriding path_tolerance parameters: %f", path_tolerance);
+    }
+    else
+    {
+      path_tolerance = 0.1;
+      ROS_INFO_STREAM("Param '" << PATH_TOL_PARAM_NAME << "' was not set. Using default value: " << path_tolerance);
+    }
+     
+    if (nh.getParam(RESAMPLE_PARAM_NAME, resample_dt))
+    {
+      ROS_INFO_STREAM("Overriding resample_dt parameters: %f", resample_dt);
+    }
+    else
+    {
+      resample_dt = 0.1;
+      ROS_INFO_STREAM("Param '" << RESAMPLE_PARAM_NAME << "' was not set. Using default value: " << resample_dt);
+    }
+    
+    if (nh.getParam(MIN_ANGLE_PARAM_NAME, min_angle_change))
+    {
+      ROS_INFO_STREAM("Overriding min_angle_change parameters: %f", min_angle_change);
+    }
+    else
+    {
+      min_angle_change = 0.001;
+      ROS_INFO_STREAM("Param '" << MIN_ANGLE_PARAM_NAME << "' was not set. Using default value: " << min_angle_change);
+    }
+    
   }
 
   std::string getDescription() const override
@@ -68,7 +104,9 @@ public:
     if (result && res.trajectory_)
     {
       ROS_DEBUG("Running '%s'", getDescription().c_str());
-      TimeOptimalTrajectoryGeneration totg;
+      
+      TimeOptimalTrajectoryGeneration totg(path_tolerance, resample_dt, min_angle_change);
+      
       if (!totg.computeTimeStamps(*res.trajectory_, req.max_velocity_scaling_factor,
                                   req.max_acceleration_scaling_factor))
       {
@@ -79,8 +117,16 @@ public:
 
     return result;
   }
+  
+  private:
+    double path_tolerance;
+    double resample_dt;
+    double min_angle_change;
 };
 
+static const std::string AddTimeOptimalParameterization::RESAMPLE_PARAM_NAME = "resample_dt";
+static const std::string AddTimeOptimalParameterization::PATH_TOL_PARAM_NAME = "path_tolerance";
+static const std::string AddTimeOptimalParameterization::MIN_ANGLE_PARAM_NAME = "min_angle_change";
 }  // namespace default_planner_request_adapters
 
 CLASS_LOADER_REGISTER_CLASS(default_planner_request_adapters::AddTimeOptimalParameterization,
