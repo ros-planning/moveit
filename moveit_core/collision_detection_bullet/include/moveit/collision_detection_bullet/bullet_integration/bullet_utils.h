@@ -153,7 +153,9 @@ public:
                          const AlignedVector<Eigen::Isometry3d>& shape_poses,
                          const std::vector<CollisionObjectType>& collision_object_types, bool active = true);
 
-  /** \brief Constructor for attached robot objects */
+  /** \brief Constructor for attached robot objects
+   *
+   *  \param shape_poses These poses are in the global (planning) frame */
   CollisionObjectWrapper(const std::string& name, const collision_detection::BodyType& type_id,
                          const std::vector<shapes::ShapeConstPtr>& shapes,
                          const AlignedVector<Eigen::Isometry3d>& shape_poses,

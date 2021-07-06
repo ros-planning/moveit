@@ -326,6 +326,8 @@ private:
   ros::Publisher planning_scene_world_publisher_;
 
   collision_detection::CollisionEnv::ObjectConstPtr scaled_object_;
+  moveit::core::FixedTransformsMap scaled_object_subframes_;
+  EigenSTL::vector_Isometry3d scaled_object_shape_poses_;
 
   std::vector<std::pair<std::string, bool> > known_collision_objects_;
   long unsigned int known_collision_objects_version_;

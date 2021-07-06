@@ -1496,7 +1496,7 @@ This is usually achieved by random seeding, which can flip the robot configurati
                </size>
               </property>
               <property name="toolTip">
-               <string>Export scene geometry to a .scene file (only geometry information is preserved)</string>
+               <string>Export scene geometry to a .scene file (only world object information is preserved)</string>
               </property>
               <property name="text">
                <string>&amp;Export</string>
@@ -1518,7 +1518,7 @@ This is usually achieved by random seeding, which can flip the robot configurati
                </size>
               </property>
               <property name="toolTip">
-               <string>Import scene geometry from a .scene file (only geometry information is preserved)</string>
+               <string>Import scene geometry from a .scene file (only world object information is preserved)</string>
               </property>
               <property name="text">
                <string>&amp;Import</string>

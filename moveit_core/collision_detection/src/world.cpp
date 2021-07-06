@@ -57,17 +57,19 @@ World::~World()
 }
 
 inline void World::addToObjectInternal(const ObjectPtr& obj, const shapes::ShapeConstPtr& shape,
-                                       const Eigen::Isometry3d& pose)
+                                       const Eigen::Isometry3d& shape_pose)
 {
   obj->shapes_.push_back(shape);
-  ASSERT_ISOMETRY(pose)  // unsanitized input, could contain a non-isometry
-  obj->shape_poses_.push_back(pose);
+  ASSERT_ISOMETRY(shape_pose)  // unsanitized input, could contain a non-isometry
+  obj->shape_poses_.push_back(shape_pose);
+  obj->global_shape_poses_.push_back(obj->pose_ * shape_pose);
 }
 
-void World::addToObject(const std::string& id, const std::vector<shapes::ShapeConstPtr>& shapes,
-                        const EigenSTL::vector_Isometry3d& poses)
+void World::addToObject(const std::string& object_id, const Eigen::Isometry3d& pose,
+                        const std::vector<shapes::ShapeConstPtr>& shapes,
+                        const EigenSTL::vector_Isometry3d& shape_poses)
 {
-  if (shapes.size() != poses.size())
+  if (shapes.size() != shape_poses.size())
   {
     ROS_ERROR_NAMED("collision_detection", "Number of shapes and number of poses do not match. "
                                            "Not adding this object to collision world.");
@@ -79,44 +81,28 @@ void World::addToObject(const std::string& id, const std::vector<shapes::ShapeCo
 
   int action = ADD_SHAPE;
 
-  ObjectPtr& obj = objects_[id];
+  ObjectPtr& obj = objects_[object_id];
   if (!obj)
   {
-    obj.reset(new Object(id));
+    obj = std::make_shared<Object>(object_id);
     action |= CREATE;
+    obj->pose_ = pose;
   }
-
-  ensureUnique(obj);
+  else
+    ensureUnique(obj);
 
   for (std::size_t i = 0; i < shapes.size(); ++i)
-    addToObjectInternal(obj, shapes[i], poses[i]);
-
-  notify(obj, Action(action));
-}
-
-void World::addToObject(const std::string& id, const shapes::ShapeConstPtr& shape, const Eigen::Isometry3d& pose)
-{
-  int action = ADD_SHAPE;
-
-  ObjectPtr& obj = objects_[id];
-  if (!obj)
-  {
-    obj.reset(new Object(id));
-    action |= CREATE;
-  }
-
-  ensureUnique(obj);
-  addToObjectInternal(obj, shape, pose);
+    addToObjectInternal(obj, shapes[i], shape_poses[i]);
 
   notify(obj, Action(action));
 }
 
 std::vector<std::string> World::getObjectIds() const
 {
-  std::vector<std::string> id;
+  std::vector<std::string> ids;
   for (const auto& object : objects_)
-    id.push_back(object.first);
-  return id;
+    ids.push_back(object.first);
+  return ids;
 }
 
 World::ObjectConstPtr World::getObject(const std::string& object_id) const
@@ -144,16 +130,17 @@ bool World::knowsTransform(const std::string& name) const
   // Check object names first
   std::map<std::string, ObjectPtr>::const_iterator it = objects_.find(name);
   if (it != objects_.end())
-    // only accept object name as frame if it is associated to a unique shape
-    return !it->second->shape_poses_.empty();
+    return true;
   else  // Then objects' subframes
   {
     for (const std::pair<const std::string, ObjectPtr>& object : objects_)
     {
       // if "object name/" matches start of object_id, we found the matching object
       if (boost::starts_with(name, object.first) && name[object.first.length()] == '/')
-        return object.second->subframe_poses_.find(name.substr(object.first.length() + 1)) !=
-               object.second->subframe_poses_.end();
+      {
+        return object.second->global_subframe_poses_.find(name.substr(object.first.length() + 1)) !=
+               object.second->global_subframe_poses_.end();
+      }
     }
   }
   return false;
@@ -176,8 +163,7 @@ const Eigen::Isometry3d& World::getTransform(const std::string& name, bool& fram
   std::map<std::string, ObjectPtr>::const_iterator it = objects_.find(name);
   if (it != objects_.end())
   {
-    if (!it->second->shape_poses_.empty())
-      return it->second->shape_poses_[0];
+    return it->second->pose_;
   }
   else  // Search within subframes
   {
@@ -186,9 +172,11 @@ const Eigen::Isometry3d& World::getTransform(const std::string& name, bool& fram
       // if "object name/" matches start of object_id, we found the matching object
       if (boost::starts_with(name, object.first) && name[object.first.length()] == '/')
       {
-        auto it = object.second->subframe_poses_.find(name.substr(object.first.length() + 1));
-        if (it != object.second->subframe_poses_.end())
+        auto it = object.second->global_subframe_poses_.find(name.substr(object.first.length() + 1));
+        if (it != object.second->global_subframe_poses_.end())
+        {
           return it->second;
+        }
       }
     }
   }
@@ -199,8 +187,38 @@ const Eigen::Isometry3d& World::getTransform(const std::string& name, bool& fram
   return IDENTITY_TRANSFORM;
 }
 
+const Eigen::Isometry3d& World::getGlobalShapeTransform(const std::string& object_id, int shape_index) const
+{
+  auto it = objects_.find(object_id);
+  if (it != objects_.end())
+  {
+    return it->second->global_shape_poses_[shape_index];
+  }
+  else
+  {
+    ROS_ERROR_STREAM("Could not find global shape transform for object " << object_id);
+    static const Eigen::Isometry3d IDENTITY_TRANSFORM = Eigen::Isometry3d::Identity();
+    return IDENTITY_TRANSFORM;
+  }
+}
+
+const EigenSTL::vector_Isometry3d& World::getGlobalShapeTransforms(const std::string& object_id) const
+{
+  auto it = objects_.find(object_id);
+  if (it != objects_.end())
+  {
+    return it->second->global_shape_poses_;
+  }
+  else
+  {
+    ROS_ERROR_STREAM("Could not find global shape transforms for object " << object_id);
+    static const EigenSTL::vector_Isometry3d IDENTITY_TRANSFORM_VECTOR;
+    return IDENTITY_TRANSFORM_VECTOR;
+  }
+}
+
 bool World::moveShapeInObject(const std::string& object_id, const shapes::ShapeConstPtr& shape,
-                              const Eigen::Isometry3d& pose)
+                              const Eigen::Isometry3d& shape_pose)
 {
   auto it = objects_.find(object_id);
   if (it != objects_.end())
@@ -210,8 +228,9 @@ bool World::moveShapeInObject(const std::string& object_id, const shapes::ShapeC
       if (it->second->shapes_[i] == shape)
       {
         ensureUnique(it->second);
-        ASSERT_ISOMETRY(pose)  // unsanitized input, could contain a non-isometry
-        it->second->shape_poses_[i] = pose;
+        ASSERT_ISOMETRY(shape_pose)  // unsanitized input, could contain a non-isometry
+        it->second->shape_poses_[i] = shape_pose;
+        it->second->global_shape_poses_[i] = it->second->pose_ * shape_pose;
 
         notify(it->second, MOVE_SHAPE);
         return true;
@@ -227,13 +246,30 @@ bool World::moveObject(const std::string& object_id, const Eigen::Isometry3d& tr
     return false;
   if (transform.isApprox(Eigen::Isometry3d::Identity()))
     return true;  // object already at correct location
-  ensureUnique(it->second);
-  for (size_t i = 0, n = it->second->shapes_.size(); i < n; ++i)
+
+  ASSERT_ISOMETRY(transform)  // unsanitized input, could contain a non-isometry
+  return setObjectPose(object_id, transform * it->second->pose_);
+}
+
+bool World::setObjectPose(const std::string& object_id, const Eigen::Isometry3d& pose)
+{
+  ASSERT_ISOMETRY(pose);  // unsanitized input, could contain a non-isometry
+  ObjectPtr& obj = objects_[object_id];
+  int action;
+  if (!obj)
   {
-    ASSERT_ISOMETRY(transform)  // unsanitized input, could contain a non-isometry
-    it->second->shape_poses_[i] = transform * it->second->shape_poses_[i];
+    obj = std::make_shared<Object>(object_id);
+    action = CREATE;
   }
-  notify(it->second, MOVE_SHAPE);
+  else
+  {
+    ensureUnique(obj);
+    action = obj->shapes_.empty() ? 0 : MOVE_SHAPE;
+  }
+
+  obj->pose_ = pose;
+  updateGlobalPosesInternal(obj);
+  notify(obj, Action(action));
   return true;
 }
 
@@ -249,6 +285,7 @@ bool World::removeShapeFromObject(const std::string& object_id, const shapes::Sh
         ensureUnique(it->second);
         it->second->shapes_.erase(it->second->shapes_.begin() + i);
         it->second->shape_poses_.erase(it->second->shape_poses_.begin() + i);
+        it->second->global_shape_poses_.erase(it->second->global_shape_poses_.begin() + i);
 
         if (it->second->shapes_.empty())
         {
@@ -295,7 +332,26 @@ bool World::setSubframesOfObject(const std::string& object_id, const moveit::cor
     ASSERT_ISOMETRY(t.second)  // unsanitized input, could contain a non-isometry
   }
   obj_pair->second->subframe_poses_ = subframe_poses;
+
+  updateGlobalPosesInternal(obj_pair->second, false, true);
   return true;
+}
+
+void World::updateGlobalPosesInternal(ObjectPtr& obj, bool update_shape_poses, bool update_subframe_poses)
+{
+  // Update global shape poses
+  if (update_shape_poses)
+    for (unsigned int i = 0; i < obj->global_shape_poses_.size(); ++i)
+      obj->global_shape_poses_[i] = obj->pose_ * obj->shape_poses_[i];
+
+  // Update global subframe poses
+  if (update_subframe_poses)
+  {
+    obj->global_subframe_poses_ = obj->subframe_poses_;  // TODO (felixvd): Inefficient copy, but iterating through two
+                                                         // maps is complicated to write for this prototype
+    for (auto& pose_pair : obj->global_subframe_poses_)
+      pose_pair.second = obj->pose_ * pose_pair.second;
+  }
 }
 
 World::ObserverHandle World::addObserver(const ObserverCallbackFn& callback)

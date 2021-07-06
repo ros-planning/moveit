@@ -191,7 +191,7 @@ void CollisionEnvFCL::constructFCLObjectWorld(const World::Object* obj, FCLObjec
     FCLGeometryConstPtr g = createCollisionGeometry(obj->shapes_[i], obj);
     if (g)
     {
-      auto co = new fcl::CollisionObjectd(g->collision_geometry_, transform2fcl(obj->shape_poses_[i]));
+      auto co = new fcl::CollisionObjectd(g->collision_geometry_, transform2fcl(obj->global_shape_poses_[i]));
       fcl_obj.collision_objects_.push_back(FCLCollisionObjectPtr(co));
       fcl_obj.collision_geometry_.push_back(g);
     }

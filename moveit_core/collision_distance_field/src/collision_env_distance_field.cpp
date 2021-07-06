@@ -1769,8 +1769,8 @@ void CollisionEnvDistanceField::updateDistanceObject(const std::string& id, Dist
       else
       {
         BodyDecompositionConstPtr bd = getBodyDecompositionCacheEntry(shape, resolution_);
-
-        shape_points.push_back(std::make_shared<PosedBodyPointDecomposition>(bd, object->shape_poses_[i]));
+        shape_points.push_back(
+            std::make_shared<PosedBodyPointDecomposition>(bd, getWorld()->getGlobalShapeTransform(id, i)));
       }
 
       add_points.insert(add_points.end(), shape_points.back()->getCollisionPoints().begin(),

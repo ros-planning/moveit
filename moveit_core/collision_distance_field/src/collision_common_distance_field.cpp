@@ -95,7 +95,7 @@ PosedBodyPointDecompositionVectorPtr getCollisionObjectPointDecomposition(const 
     PosedBodyPointDecompositionPtr pbd(
         new PosedBodyPointDecomposition(getBodyDecompositionCacheEntry(obj.shapes_[i], resolution)));
     ret->addToVector(pbd);
-    ret->updatePose(ret->getSize() - 1, obj.shape_poses_[i]);
+    ret->updatePose(ret->getSize() - 1, obj.global_shape_poses_[i]);
   }
   return ret;
 }

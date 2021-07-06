@@ -169,19 +169,25 @@ TEST(PlanningScene, loadGoodSceneGeometry)
   std::istringstream good_scene_geometry;
   good_scene_geometry.str("foobar_scene\n"
                           "* foo\n"
+                          "0 0 0\n"
+                          "0 0 0 1\n"
                           "1\n"
                           "box\n"
                           "2.58 1.36 0.31\n"
                           "1.49257 1.00222 0.170051\n"
                           "0 0 4.16377e-05 1\n"
                           "0 0 1 0.3\n"
+                          "0\n"
                           "* bar\n"
+                          "0 0 0\n"
+                          "0 0 0 1\n"
                           "1\n"
                           "cylinder\n"
                           "0.02 0.0001\n"
                           "0.453709 0.499136 0.355051\n"
                           "0 0 4.16377e-05 1\n"
                           "1 0 0 1\n"
+                          "0\n"
                           ".\n");
   EXPECT_TRUE(ps->loadGeometryFromStream(good_scene_geometry));
   EXPECT_EQ(ps->getName(), "foobar_scene");

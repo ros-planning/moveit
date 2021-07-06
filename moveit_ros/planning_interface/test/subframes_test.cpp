@@ -62,6 +62,8 @@ constexpr double EPSILON = 1e-2;
 constexpr double Z_OFFSET = 0.05;
 constexpr double PLANNING_TIME_S = 30.0;
 
+const double TAU = 2 * M_PI;  // One turn (360°) in radians
+
 // Function copied from tutorial
 // a small helper function to create our planning requests and move the robot.
 bool moveToCartPose(const geometry_msgs::PoseStamped& pose, moveit::planning_interface::MoveGroupInterface& group,
@@ -82,19 +84,20 @@ bool moveToCartPose(const geometry_msgs::PoseStamped& pose, moveit::planning_int
   return false;
 }
 
-// Function copied from tutorial
+// Function copied from subframes tutorial
 // This helper function creates two objects and publishes them to the PlanningScene: a box and a cylinder.
 // The box spawns in front of the gripper, the cylinder at the tip of the gripper, as if it had been grasped.
 void spawnCollisionObjects(moveit::planning_interface::PlanningSceneInterface& planning_scene_interface)
 {
-  const std::string log_name = "spawn_collision_objects";
   double z_offset_box = .25;  // The z-axis points away from the gripper
   double z_offset_cylinder = .1;
 
-  // First, we start defining the CollisionObject as usual.
   moveit_msgs::CollisionObject box;
   box.id = "box";
   box.header.frame_id = "panda_hand";
+  box.pose.position.z = z_offset_box;
+  box.pose.orientation.w = 1.0;  // Neutral orientation
+
   box.primitives.resize(1);
   box.primitive_poses.resize(1);
   box.primitives[0].type = box.primitives[0].BOX;
@@ -102,42 +105,39 @@ void spawnCollisionObjects(moveit::planning_interface::PlanningSceneInterface& p
   box.primitives[0].dimensions[0] = 0.05;
   box.primitives[0].dimensions[1] = 0.1;
   box.primitives[0].dimensions[2] = 0.02;
-  box.primitive_poses[0].position.z = z_offset_box;
+  box.primitive_poses[0].orientation.w = 1.0;  // Neutral orientation
 
-  // Then, we define the subframes of the CollisionObject.
   box.subframe_names.resize(1);
   box.subframe_poses.resize(1);
+
   box.subframe_names[0] = "bottom";
   box.subframe_poses[0].position.y = -.05;
-  box.subframe_poses[0].position.z = 0.0 + z_offset_box;
+
   tf2::Quaternion orientation;
-  orientation.setRPY(90.0 / 180.0 * M_PI, 0, 0);
+  orientation.setRPY(TAU / 4.0, 0, 0);  // 1/4 turn
   box.subframe_poses[0].orientation = tf2::toMsg(orientation);
 
   // Next, define the cylinder
   moveit_msgs::CollisionObject cylinder;
   cylinder.id = "cylinder";
   cylinder.header.frame_id = "panda_hand";
+  cylinder.pose.position.z = z_offset_cylinder;
+  orientation.setRPY(0, TAU / 4.0, 0);
+  cylinder.pose.orientation = tf2::toMsg(orientation);
+
   cylinder.primitives.resize(1);
   cylinder.primitive_poses.resize(1);
   cylinder.primitives[0].type = box.primitives[0].CYLINDER;
   cylinder.primitives[0].dimensions.resize(2);
-  cylinder.primitives[0].dimensions[0] = 0.06;   // height (along x)
-  cylinder.primitives[0].dimensions[1] = 0.005;  // radius
-  cylinder.primitive_poses[0].position.x = 0.0;
-  cylinder.primitive_poses[0].position.y = 0.0;
-  cylinder.primitive_poses[0].position.z = 0.0 + z_offset_cylinder;
-  orientation.setRPY(0, 90.0 / 180.0 * M_PI, 0);
-  cylinder.primitive_poses[0].orientation = tf2::toMsg(orientation);
+  cylinder.primitives[0].dimensions[0] = 0.06;      // height (along x)
+  cylinder.primitives[0].dimensions[1] = 0.005;     // radius
+  cylinder.primitive_poses[0].orientation.w = 1.0;  // Neutral orientation
 
   cylinder.subframe_poses.resize(1);
   cylinder.subframe_names.resize(1);
   cylinder.subframe_names[0] = "tip";
-  cylinder.subframe_poses[0].position.x = 0.03;
-  cylinder.subframe_poses[0].position.y = 0.0;
-  cylinder.subframe_poses[0].position.z = 0.0 + z_offset_cylinder;
-  orientation.setRPY(0, 90.0 / 180.0 * M_PI, 0);
-  cylinder.subframe_poses[0].orientation = tf2::toMsg(orientation);
+  cylinder.subframe_poses[0].position.z = 0.03;
+  cylinder.subframe_poses[0].orientation.w = 1.0;  // Neutral orientation
 
   // Lastly, the objects are published to the PlanningScene. In this tutorial, we publish a box and a cylinder.
   box.operation = moveit_msgs::CollisionObject::ADD;
@@ -160,10 +160,11 @@ TEST(TestPlanUsingSubframes, SubframesTests)
   att_coll_object.object.id = "cylinder";
   att_coll_object.link_name = "panda_hand";
   att_coll_object.object.operation = att_coll_object.object.ADD;
+  att_coll_object.object.pose.orientation.w = 1.0;
   planning_scene_interface.applyAttachedCollisionObject(att_coll_object);
 
   tf2::Quaternion target_orientation;
-  target_orientation.setRPY(0, 180.0 / 180.0 * M_PI, 90.0 / 180.0 * M_PI);
+  target_orientation.setRPY(0, TAU / 2.0, TAU / 4.0);
   geometry_msgs::PoseStamped target_pose_stamped;
   target_pose_stamped.pose.orientation = tf2::toMsg(target_orientation);
   target_pose_stamped.pose.position.z = Z_OFFSET;
@@ -176,15 +177,25 @@ TEST(TestPlanUsingSubframes, SubframesTests)
     planning_scene_monitor::LockedPlanningSceneRO planning_scene(planning_scene_monitor);
 
     // get the tip and box subframe locations in world
-    Eigen::Isometry3d eef = planning_scene->getFrameTransform("cylinder/tip");
+    // TODO (felixvd): Get these from the plan's goal state instead, so we don't have to execute the motion in CI
+    Eigen::Isometry3d cyl_tip = planning_scene->getFrameTransform("cylinder/tip");
     Eigen::Isometry3d box_subframe = planning_scene->getFrameTransform(target_pose_stamped.header.frame_id);
     Eigen::Isometry3d target_pose;
     tf2::fromMsg(target_pose_stamped.pose, target_pose);
 
     // expect that they are identical
     std::stringstream ss;
-    ss << "target frame: \n" << (box_subframe * target_pose).matrix() << "\ncylinder frame: \n" << eef.matrix();
-    EXPECT_TRUE(eef.isApprox(box_subframe * target_pose, EPSILON)) << ss.str();
+    ss << "target frame: \n" << (box_subframe * target_pose).matrix() << "\ncylinder frame: \n" << cyl_tip.matrix();
+    EXPECT_TRUE(cyl_tip.isApprox(box_subframe * target_pose, EPSILON)) << ss.str();
+
+    // Check that robot wrist is where we expect it to be
+    Eigen::Isometry3d panda_link = planning_scene->getFrameTransform("panda_link8");
+    Eigen::Isometry3d expected_pose = Eigen::Isometry3d(Eigen::Translation3d(0.307, 0.13, 0.44)) *
+                                      Eigen::Isometry3d(Eigen::Quaterniond(0.0003809, -0.38303, 0.92373, 0.00028097));
+
+    ss.str("");
+    ss << "panda link frame: \n" << panda_link.matrix() << "\nexpected pose: \n" << expected_pose.matrix();
+    EXPECT_TRUE(panda_link.isApprox(expected_pose, EPSILON)) << ss.str();
   }
 }
 

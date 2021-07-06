@@ -46,6 +46,8 @@
 #include <moveit/utils/robot_model_test_utils.h>
 #include <ros/package.h>
 
+constexpr double EPSILON = 1e-2;
+
 class LoadPlanningModelsPr2 : public testing::Test
 {
 protected:
@@ -231,16 +233,17 @@ TEST_F(LoadPlanningModelsPr2, FullTest)
   moveit::core::RobotState ks2(robot_model);
   ks2.setToDefaultValues();
 
+  const auto identity = Eigen::Isometry3d::Identity();
   std::vector<shapes::ShapeConstPtr> shapes;
   EigenSTL::vector_Isometry3d poses;
   shapes::Shape* shape = new shapes::Box(.1, .1, .1);
   shapes.push_back(shapes::ShapeConstPtr(shape));
-  poses.push_back(Eigen::Isometry3d::Identity());
+  poses.push_back(identity);
   std::set<std::string> touch_links;
 
   trajectory_msgs::JointTrajectory empty_state;
   moveit::core::AttachedBody* attached_body = new moveit::core::AttachedBody(
-      robot_model->getLinkModel("r_gripper_palm_link"), "box", shapes, poses, touch_links, empty_state);
+      robot_model->getLinkModel("r_gripper_palm_link"), "box", identity, shapes, poses, touch_links, empty_state);
   ks.attachBody(attached_body);
 
   std::vector<const moveit::core::AttachedBody*> attached_bodies_1;
@@ -261,6 +264,49 @@ TEST_F(LoadPlanningModelsPr2, FullTest)
   attached_bodies_2.clear();
   ks2.getAttachedBodies(attached_bodies_2);
   ASSERT_EQ(attached_bodies_2.size(), 0u);
+}
+
+TEST_F(LoadPlanningModelsPr2, ObjectPoseAndSubframes)
+{
+  moveit::core::RobotModelPtr robot_model(new moveit::core::RobotModel(urdf_model_, srdf_model_));
+
+  moveit::core::RobotState ks(robot_model);
+  ks.setToDefaultValues();
+
+  std::vector<shapes::ShapeConstPtr> shapes;
+  EigenSTL::vector_Isometry3d poses;
+  shapes::Shape* shape = new shapes::Box(.1, .1, .1);
+  shapes.push_back(shapes::ShapeConstPtr(shape));
+  poses.push_back(Eigen::Isometry3d::Identity());
+  std::set<std::string> touch_links;
+  Eigen::Isometry3d pose_a = Eigen::Isometry3d::Identity();
+  Eigen::Isometry3d pose_b = Eigen::Isometry3d(Eigen::Translation3d(0, 0, 1));
+  moveit::core::FixedTransformsMap subframes;
+  subframes["frame1"] = Eigen::Isometry3d(Eigen::Translation3d(0, 0, 1));
+
+  trajectory_msgs::JointTrajectory empty_state;
+  moveit::core::AttachedBody* attached_body_a =
+      new moveit::core::AttachedBody(robot_model->getLinkModel("r_gripper_palm_link"), "boxA", pose_a, shapes, poses,
+                                     touch_links, empty_state, subframes);
+  moveit::core::AttachedBody* attached_body_b =
+      new moveit::core::AttachedBody(robot_model->getLinkModel("r_gripper_palm_link"), "boxB", pose_b, shapes, poses,
+                                     touch_links, empty_state, subframes);
+  ks.attachBody(attached_body_a);
+  ks.attachBody(attached_body_b);
+
+  // Check position of shape in each body
+  Eigen::Isometry3d p;
+  p = ks.getAttachedBody("boxA")->getShapePosesInLinkFrame()[0];
+  EXPECT_EQ(0.0, p(2, 3));  // check translation.z
+  p = ks.getAttachedBody("boxB")->getShapePosesInLinkFrame()[0];
+  EXPECT_EQ(1.0, p(2, 3));  // z
+
+  // Expect the pose and the subframe to have the same effect
+  Eigen::Isometry3d p2;
+
+  p = ks.getFrameTransform("boxA/frame1");
+  p2 = ks.getFrameTransform("boxB");
+  EXPECT_TRUE(p.isApprox(p2, EPSILON));
 }
 
 int main(int argc, char** argv)

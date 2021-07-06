@@ -255,9 +255,9 @@ void CollisionEnvBullet::addToManager(const World::Object* obj)
       collision_object_types.push_back(collision_detection_bullet::CollisionObjectType::USE_SHAPE_TYPE);
   }
 
-  collision_detection_bullet::CollisionObjectWrapperPtr cow(new collision_detection_bullet::CollisionObjectWrapper(
-      obj->id_, collision_detection::BodyType::WORLD_OBJECT, obj->shapes_, obj->shape_poses_, collision_object_types,
-      false));
+  auto cow = std::make_shared<collision_detection_bullet::CollisionObjectWrapper>(
+      obj->id_, collision_detection::BodyType::WORLD_OBJECT, obj->shapes_, obj->global_shape_poses_,
+      collision_object_types, false);
 
   manager_->addCollisionObject(cow);
   manager_CCD_->addCollisionObject(cow->clone());

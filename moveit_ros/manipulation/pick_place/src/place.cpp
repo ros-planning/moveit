@@ -68,7 +68,7 @@ struct OrderPlaceLocationQuality
 bool transformToEndEffectorGoal(const geometry_msgs::PoseStamped& goal_pose,
                                 const moveit::core::AttachedBody* attached_body, geometry_msgs::PoseStamped& place_pose)
 {
-  const EigenSTL::vector_Isometry3d& fixed_transforms = attached_body->getFixedTransforms();
+  const EigenSTL::vector_Isometry3d& fixed_transforms = attached_body->getShapePosesInLinkFrame();
   if (fixed_transforms.empty())
     return false;
 

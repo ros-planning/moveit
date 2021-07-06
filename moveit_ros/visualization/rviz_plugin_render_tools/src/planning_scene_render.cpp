@@ -112,8 +112,11 @@ void PlanningSceneRender::renderPlanningScene(const planning_scene::PlanningScen
       alpha = c.a;
     }
     for (std::size_t j = 0; j < object->shapes_.size(); ++j)
-      render_shapes_->renderShape(planning_scene_geometry_node_, object->shapes_[j].get(), object->shape_poses_[j],
-                                  octree_voxel_rendering, octree_color_mode, color, alpha);
+    {
+      render_shapes_->renderShape(planning_scene_geometry_node_, object->shapes_[j].get(),
+                                  object->global_shape_poses_[j], octree_voxel_rendering, octree_color_mode, color,
+                                  alpha);
+    }
   }
 }
 }  // namespace moveit_rviz_plugin

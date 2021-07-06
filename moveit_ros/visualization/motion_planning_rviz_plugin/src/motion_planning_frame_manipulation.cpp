@@ -89,14 +89,11 @@ void MotionPlanningFrame::processDetectedObjects()
       object_ids.clear();
       for (const auto& object : *world)
       {
-        if (!object.second->shape_poses_.empty())
+        const auto& position = object.second->pose_.translation();
+        if (position.x() >= min_x && position.x() <= max_x && position.y() >= min_y && position.y() <= max_y &&
+            position.z() >= min_z && position.z() <= max_z)
         {
-          const auto& position = object.second->shape_poses_[0].translation();
-          if (position.x() >= min_x && position.x() <= max_x && position.y() >= min_y && position.y() <= max_y &&
-              position.z() >= min_z && position.z() <= max_z)
-          {
-            object_ids.push_back(object.first);
-          }
+          object_ids.push_back(object.first);
         }
       }
       if (!object_ids.empty())

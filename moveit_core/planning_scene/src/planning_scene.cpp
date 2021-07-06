@@ -455,7 +455,7 @@ void PlanningScene::pushDiffs(const PlanningScenePtr& scene)
       {
         const collision_detection::World::Object& obj = *world_->getObject(it.first);
         scene->world_->removeObject(obj.id_);
-        scene->world_->addToObject(obj.id_, obj.shapes_, obj.shape_poses_);
+        scene->world_->addToObject(obj.id_, obj.pose_, obj.shapes_, obj.shape_poses_);
         if (hasObjectColor(it.first))
           scene->setObjectColor(it.first, getObjectColor(it.first));
         if (hasObjectType(it.first))
@@ -750,10 +750,11 @@ private:
 
 bool PlanningScene::getCollisionObjectMsg(moveit_msgs::CollisionObject& collision_obj, const std::string& ns) const
 {
+  collision_detection::CollisionEnv::ObjectConstPtr obj = world_->getObject(ns);
   collision_obj.header.frame_id = getPlanningFrame();
+  collision_obj.pose = tf2::toMsg(obj->pose_);
   collision_obj.id = ns;
   collision_obj.operation = moveit_msgs::CollisionObject::ADD;
-  collision_detection::CollisionEnv::ObjectConstPtr obj = world_->getObject(ns);
   if (!obj)
     return false;
   ShapeVisitorAddToCollisionObject sv(&collision_obj);
@@ -953,16 +954,17 @@ void PlanningScene::saveGeometryToStream(std::ostream& out) const
       collision_detection::CollisionEnv::ObjectConstPtr obj = world_->getObject(id);
       if (obj)
       {
-        out << "* " << id << std::endl;
-        out << obj->shapes_.size() << std::endl;
+        out << "* " << id << std::endl;  // New object start
+        // Write object pose
+        writePoseToText(out, obj->pose_);
+
+        // Write shapes and shape poses
+        out << obj->shapes_.size() << std::endl;  // Number of shapes
         for (std::size_t j = 0; j < obj->shapes_.size(); ++j)
         {
           shapes::saveAsText(obj->shapes_[j].get(), out);
           // shape_poses_ is valid isometry by contract
-          out << obj->shape_poses_[j].translation().x() << " " << obj->shape_poses_[j].translation().y() << " "
-              << obj->shape_poses_[j].translation().z() << std::endl;
-          Eigen::Quaterniond r(obj->shape_poses_[j].linear());
-          out << r.x() << " " << r.y() << " " << r.z() << " " << r.w() << std::endl;
+          writePoseToText(out, obj->shape_poses_[j]);
           if (hasObjectColor(id))
           {
             const std_msgs::ColorRGBA& c = getObjectColor(id);
@@ -970,6 +972,14 @@ void PlanningScene::saveGeometryToStream(std::ostream& out) const
           }
           else
             out << "0 0 0 0" << std::endl;
+        }
+
+        // Write subframes
+        out << obj->subframe_poses_.size() << std::endl;  // Number of subframes
+        for (auto& pose_pair : obj->subframe_poses_)
+        {
+          out << pose_pair.first << std::endl;     // Subframe name
+          writePoseToText(out, pose_pair.second);  // Subframe pose
         }
       }
     }
@@ -989,6 +999,7 @@ bool PlanningScene::loadGeometryFromStream(std::istream& in, const Eigen::Isomet
     return false;
   }
   std::getline(in, name_);
+  Eigen::Isometry3d pose;  // Transient
   do
   {
     std::string marker;
@@ -998,16 +1009,27 @@ bool PlanningScene::loadGeometryFromStream(std::istream& in, const Eigen::Isomet
       ROS_ERROR_NAMED(LOGNAME, "Bad input stream when loading marker in scene geometry");
       return false;
     }
-    if (marker == "*")
+    if (marker == "*")  // Start of new object
     {
-      std::string ns;
-      std::getline(in, ns);
+      std::string object_id;
+      std::getline(in, object_id);
       if (!in.good() || in.eof())
       {
-        ROS_ERROR_NAMED(LOGNAME, "Bad input stream when loading ns in scene geometry");
+        ROS_ERROR_NAMED(LOGNAME, "Bad input stream when loading object_id in scene geometry");
         return false;
       }
-      boost::algorithm::trim(ns);
+      boost::algorithm::trim(object_id);
+
+      // Read in object pose
+      if (!readPoseFromText(in, pose))
+      {
+        ROS_ERROR_NAMED(LOGNAME, "Failed to read object pose from scene file");
+        return false;
+      }
+      pose = offset * pose;  // Transform pose by input pose offset
+      world_->setObjectPose(object_id, pose);
+
+      // Read in shapes
       unsigned int shape_count;
       in >> shape_count;
       for (std::size_t i = 0; i < shape_count && in.good() && !in.eof(); ++i)
@@ -1018,15 +1040,9 @@ bool PlanningScene::loadGeometryFromStream(std::istream& in, const Eigen::Isomet
           ROS_ERROR_NAMED(LOGNAME, "Failed to load shape from scene file");
           return false;
         }
-        double x, y, z, rx, ry, rz, rw;
-        if (!(in >> x >> y >> z))
+        if (!readPoseFromText(in, pose))
         {
-          ROS_ERROR_NAMED(LOGNAME, "Improperly formatted translation in scene geometry file");
-          return false;
-        }
-        if (!(in >> rx >> ry >> rz >> rw))
-        {
-          ROS_ERROR_NAMED(LOGNAME, "Improperly formatted rotation in scene geometry file");
+          ROS_ERROR_NAMED(LOGNAME, "Failed to read pose from scene file");
           return false;
         }
         float r, g, b, a;
@@ -1037,10 +1053,7 @@ bool PlanningScene::loadGeometryFromStream(std::istream& in, const Eigen::Isomet
         }
         if (shape)
         {
-          Eigen::Isometry3d pose = Eigen::Translation3d(x, y, z) * Eigen::Quaterniond(rw, rx, ry, rz);
-          // Transform pose by input pose offset
-          pose = offset * pose;
-          world_->addToObject(ns, shape, pose);
+          world_->addToObject(object_id, shape, pose);
           if (r > 0.0f || g > 0.0f || b > 0.0f || a > 0.0f)
           {
             std_msgs::ColorRGBA color;
@@ -1048,10 +1061,27 @@ bool PlanningScene::loadGeometryFromStream(std::istream& in, const Eigen::Isomet
             color.g = g;
             color.b = b;
             color.a = a;
-            setObjectColor(ns, color);
+            setObjectColor(object_id, color);
           }
         }
       }
+
+      // Read in subframes
+      moveit::core::FixedTransformsMap subframes;
+      unsigned int subframe_count;
+      in >> subframe_count;
+      for (std::size_t i = 0; i < subframe_count && in.good() && !in.eof(); ++i)
+      {
+        std::string subframe_name;
+        in >> subframe_name;
+        if (!readPoseFromText(in, pose))
+        {
+          ROS_ERROR_NAMED(LOGNAME, "Failed to read subframe pose from scene file");
+          return false;
+        }
+        subframes[subframe_name] = pose;
+      }
+      world_->setSubframesOfObject(object_id, subframes);
     }
     else if (marker == ".")
     {
@@ -1064,6 +1094,30 @@ bool PlanningScene::loadGeometryFromStream(std::istream& in, const Eigen::Isomet
       return false;
     }
   } while (true);
+}
+
+bool PlanningScene::readPoseFromText(std::istream& in, Eigen::Isometry3d& pose) const
+{
+  double x, y, z, rx, ry, rz, rw;
+  if (!(in >> x >> y >> z))
+  {
+    ROS_ERROR_NAMED(LOGNAME, "Improperly formatted translation in scene geometry file");
+    return false;
+  }
+  if (!(in >> rx >> ry >> rz >> rw))
+  {
+    ROS_ERROR_NAMED(LOGNAME, "Improperly formatted rotation in scene geometry file");
+    return false;
+  }
+  pose = Eigen::Translation3d(x, y, z) * Eigen::Quaterniond(rw, rx, ry, rz);
+  return true;
+}
+
+void PlanningScene::writePoseToText(std::ostream& out, const Eigen::Isometry3d& pose) const
+{
+  out << pose.translation().x() << " " << pose.translation().y() << " " << pose.translation().z() << std::endl;
+  Eigen::Quaterniond r(pose.linear());
+  out << r.x() << " " << r.y() << " " << r.z() << " " << r.w() << std::endl;
 }
 
 void PlanningScene::setCurrentState(const moveit_msgs::RobotState& state)
@@ -1339,7 +1393,7 @@ void PlanningScene::processOctomapMsg(const octomap_msgs::OctomapWithPose& map)
 
   const Eigen::Isometry3d& t = getFrameTransform(map.header.frame_id);
   Eigen::Isometry3d p;
-  tf2::fromMsg(map.origin, p);
+  PlanningScene::poseMsgToEigen(map.origin, p);
   p = t * p;
   world_->addToObject(OCTOMAP_NS, shapes::ShapeConstPtr(new shapes::OcTree(om)), p);
 }
@@ -1439,14 +1493,14 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::Attache
     if (link_model)
     {
       // items to build the attached object from (filled from existing world object or message)
+      Eigen::Isometry3d object_pose_in_link;
       std::vector<shapes::ShapeConstPtr> shapes;
-      EigenSTL::vector_Isometry3d poses;
+      EigenSTL::vector_Isometry3d shape_poses;
       moveit::core::FixedTransformsMap subframe_poses;
 
-      // STEP 1: Get info about object from the world. First shapes, then subframes.
-      // TODO(felixvd): This code may be duplicated in robot_state/conversions.cpp
+      // STEP 1: Obtain info about object to be attached.
+      //         If it is in the world, message contents are ignored.
 
-      // STEP 1.1: Get shapes and poses from existing world object or message.
       collision_detection::CollisionEnv::ObjectConstPtr obj_in_world = world_->getObject(object.object.id);
       if (object.object.operation == moveit_msgs::CollisionObject::ADD && object.object.primitives.empty() &&
           object.object.meshes.empty() && object.object.planes.empty())
@@ -1455,14 +1509,10 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::Attache
         {
           ROS_DEBUG_NAMED(LOGNAME, "Attaching world object '%s' to link '%s'", object.object.id.c_str(),
                           object.link_name.c_str());
-          // Extract the shapes from the world
+          object_pose_in_link = robot_state_->getGlobalLinkTransform(link_model).inverse() * obj_in_world->pose_;
           shapes = obj_in_world->shapes_;
-          poses = obj_in_world->shape_poses_;
-
-          // Transform shape poses to the link frame
-          const Eigen::Isometry3d& inv_transform = robot_state_->getGlobalLinkTransform(link_model).inverse();
-          for (Eigen::Isometry3d& pose : poses)
-            pose = inv_transform * pose;
+          shape_poses = obj_in_world->shape_poses_;
+          subframe_poses = obj_in_world->subframe_poses_;
         }
         else
         {
@@ -1473,46 +1523,54 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::Attache
           return false;
         }
       }
-      else  // If object is not in the world, fill shapes and poses with the message contents
+      else  // If object is not in the world, use the message contents
       {
+        Eigen::Isometry3d header_frame_to_object_pose;
+        PlanningScene::poseMsgToEigen(object.object.pose, header_frame_to_object_pose);
+        // TODO(felixvd): Use _msgToAttachedBody from robot_state/conversions.cpp here and
+        //                make a helper function for the other branch (getAttachedBodyFromWorld)
+        const Eigen::Isometry3d world_to_header_frame = getFrameTransform(object.object.header.frame_id);
+        const Eigen::Isometry3d link_to_header_frame =
+            robot_state_->getGlobalLinkTransform(link_model).inverse() * world_to_header_frame;
+        object_pose_in_link = link_to_header_frame * header_frame_to_object_pose;
+
         for (std::size_t i = 0; i < object.object.primitives.size(); ++i)
         {
-          if (shapes::Shape* s = shapes::constructShapeFromMsg(object.object.primitives[i]))
+          if (shapes::Shape* shape = shapes::constructShapeFromMsg(object.object.primitives[i]))
           {
-            Eigen::Isometry3d p;
-            tf2::fromMsg(object.object.primitive_poses[i], p);
-            shapes.push_back(shapes::ShapeConstPtr(s));
-            poses.push_back(p);
+            Eigen::Isometry3d shape_pose;
+            PlanningScene::poseMsgToEigen(object.object.primitive_poses[i], shape_pose);
+            shapes.push_back(shapes::ShapeConstPtr(shape));
+            shape_poses.push_back(shape_pose);
           }
         }
         for (std::size_t i = 0; i < object.object.meshes.size(); ++i)
         {
-          if (shapes::Shape* s = shapes::constructShapeFromMsg(object.object.meshes[i]))
+          if (shapes::Shape* shape = shapes::constructShapeFromMsg(object.object.meshes[i]))
           {
-            Eigen::Isometry3d p;
-            tf2::fromMsg(object.object.mesh_poses[i], p);
-            shapes.push_back(shapes::ShapeConstPtr(s));
-            poses.push_back(p);
+            Eigen::Isometry3d shape_pose;
+            PlanningScene::poseMsgToEigen(object.object.mesh_poses[i], shape_pose);
+            shapes.push_back(shapes::ShapeConstPtr(shape));
+            shape_poses.push_back(shape_pose);
           }
         }
         for (std::size_t i = 0; i < object.object.planes.size(); ++i)
         {
-          if (shapes::Shape* s = shapes::constructShapeFromMsg(object.object.planes[i]))
+          if (shapes::Shape* shape = shapes::constructShapeFromMsg(object.object.planes[i]))
           {
-            Eigen::Isometry3d p;
-            tf2::fromMsg(object.object.plane_poses[i], p);
-            shapes.push_back(shapes::ShapeConstPtr(s));
-            poses.push_back(p);
+            Eigen::Isometry3d shape_pose;
+            PlanningScene::poseMsgToEigen(object.object.plane_poses[i], shape_pose);
+            shapes.push_back(shapes::ShapeConstPtr(shape));
+            shape_poses.push_back(shape_pose);
           }
         }
 
-        // Transform shape poses to link frame
-        if (object.object.header.frame_id != object.link_name)
+        Eigen::Isometry3d subframe_pose;
+        for (std::size_t i = 0; i < object.object.subframe_poses.size(); ++i)
         {
-          const Eigen::Isometry3d& transform = robot_state_->getGlobalLinkTransform(link_model).inverse() *
-                                               getFrameTransform(object.object.header.frame_id);
-          for (Eigen::Isometry3d& pose : poses)
-            pose = transform * pose;
+          PlanningScene::poseMsgToEigen(object.object.subframe_poses[i], subframe_pose);
+          std::string name = object.object.subframe_names[i];
+          subframe_poses[name] = subframe_pose;
         }
       }
 
@@ -1526,37 +1584,7 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::Attache
       if (!object.object.type.db.empty() || !object.object.type.key.empty())
         setObjectType(object.object.id, object.object.type);
 
-      // STEP 1.2: Get subframes from previous world object or the message
-      if (object.object.operation == moveit_msgs::CollisionObject::ADD && obj_in_world &&
-          object.object.subframe_poses.empty())
-      {
-        subframe_poses = obj_in_world->subframe_poses_;
-        // Transform subframes to the link frame
-        const Eigen::Isometry3d& inv_transform = robot_state_->getGlobalLinkTransform(link_model).inverse();
-        for (auto& subframe : subframe_poses)
-          subframe.second = inv_transform * subframe.second;
-      }
-      else  // Populate subframes from message
-      {
-        Eigen::Isometry3d p;
-        for (std::size_t i = 0; i < object.object.subframe_poses.size(); ++i)
-        {
-          tf2::fromMsg(object.object.subframe_poses[i], p);
-          std::string name = object.object.subframe_names[i];
-          subframe_poses[name] = p;
-        }
-
-        // Transform subframes to the link frame
-        if (object.object.header.frame_id != object.link_name)
-        {
-          const Eigen::Isometry3d& transform = robot_state_->getGlobalLinkTransform(link_model).inverse() *
-                                               getFrameTransform(object.object.header.frame_id);
-          for (auto& subframe : subframe_poses)
-            subframe.second = transform * subframe.second;
-        }
-      }
-
-      // STEP 2: Remove the object from the world
+      // STEP 2: Remove the object from the world (if it existed)
       if (obj_in_world && world_->removeObject(object.object.id))
       {
         if (object.object.operation == moveit_msgs::CollisionObject::ADD)
@@ -1579,17 +1607,25 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::Attache
                           "The object was replaced.",
                           object.object.id.c_str(), object.link_name.c_str());
 
-        robot_state_->attachBody(object.object.id, shapes, poses, object.touch_links, object.link_name,
-                                 object.detach_posture, subframe_poses);
+        robot_state_->attachBody(object.object.id, object_pose_in_link, shapes, shape_poses, object.touch_links,
+                                 object.link_name, object.detach_posture, subframe_poses);
         ROS_DEBUG_NAMED(LOGNAME, "Attached object '%s' to link '%s'", object.object.id.c_str(),
                         object.link_name.c_str());
       }
       else  // APPEND: augment to existing attached object
       {
         const moveit::core::AttachedBody* ab = robot_state_->getAttachedBody(object.object.id);
+
+        // Allow overriding the body's pose if provided, otherwise keep the old one
+        if (object.object.pose.position.x == 0 && object.object.pose.position.y == 0 &&
+            object.object.pose.position.z == 0 && object.object.pose.orientation.x == 0 &&
+            object.object.pose.orientation.y == 0 && object.object.pose.orientation.z == 0 &&
+            object.object.pose.orientation.w == 0)
+          object_pose_in_link = ab->getPose();  // Keep old pose
+
         shapes.insert(shapes.end(), ab->getShapes().begin(), ab->getShapes().end());
-        poses.insert(poses.end(), ab->getFixedTransforms().begin(), ab->getFixedTransforms().end());
-        subframe_poses.insert(ab->getSubframeTransforms().begin(), ab->getSubframeTransforms().end());
+        shape_poses.insert(shape_poses.end(), ab->getShapePoses().begin(), ab->getShapePoses().end());
+        subframe_poses.insert(ab->getSubframes().begin(), ab->getSubframes().end());
         trajectory_msgs::JointTrajectory detach_posture =
             object.detach_posture.joint_names.empty() ? ab->getDetachPosture() : object.detach_posture;
 
@@ -1598,8 +1634,8 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::Attache
                            std::make_move_iterator(object.touch_links.end()));
 
         robot_state_->clearAttachedBody(object.object.id);
-        robot_state_->attachBody(object.object.id, shapes, poses, touch_links, object.link_name, detach_posture,
-                                 subframe_poses);
+        robot_state_->attachBody(object.object.id, object_pose_in_link, shapes, shape_poses, touch_links,
+                                 object.link_name, detach_posture, subframe_poses);
         ROS_DEBUG_NAMED(LOGNAME, "Appended things to object '%s' attached to link '%s'", object.object.id.c_str(),
                         object.link_name.c_str());
       }
@@ -1649,8 +1685,9 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::Attache
                        object.object.id.c_str());
       else
       {
-        world_->addToObject(name, attached_body->getShapes(), attached_body->getGlobalCollisionBodyTransforms());
-        world_->setSubframesOfObject(name, attached_body->getSubframeTransforms());
+        const Eigen::Isometry3d& pose = attached_body->getGlobalPose();
+        world_->addToObject(name, pose, attached_body->getShapes(), attached_body->getShapePoses());
+        world_->setSubframesOfObject(name, attached_body->getSubframes());
         ROS_DEBUG_NAMED(LOGNAME, "Detached object '%s' from link '%s' and added it back in the collision world",
                         name.c_str(), object.link_name.c_str());
       }
@@ -1721,6 +1758,8 @@ bool PlanningScene::processCollisionObjectAdd(const moveit_msgs::CollisionObject
     return false;
   }
 
+  // TODO (felixvd): Factor these 3 conditions out of here and processAttachedCollisionObject,
+  //                and fill the pose vectors with Identity transforms instead of stopping.
   if (object.primitives.size() != object.primitive_poses.size())
   {
     ROS_ERROR_NAMED(LOGNAME, "Number of primitive shapes does not match number of poses "
@@ -1750,49 +1789,46 @@ bool PlanningScene::processCollisionObjectAdd(const moveit_msgs::CollisionObject
   if (object.operation == moveit_msgs::CollisionObject::ADD && world_->hasObject(object.id))
     world_->removeObject(object.id);
 
-  const Eigen::Isometry3d& object_frame_transform = getFrameTransform(object.header.frame_id);
+  const Eigen::Isometry3d& world_to_object_header_transform = getFrameTransform(object.header.frame_id);
+  Eigen::Isometry3d header_to_pose_transform;
+  PlanningScene::poseMsgToEigen(object.pose, header_to_pose_transform);
+  const Eigen::Isometry3d object_frame_transform = world_to_object_header_transform * header_to_pose_transform;
+
+  std::vector<shapes::ShapeConstPtr> shapes;
+  EigenSTL::vector_Isometry3d shape_poses;
+  const auto num_shapes = object.primitives.size() + object.meshes.size() + object.planes.size();
+  shapes.reserve(num_shapes);
+  shape_poses.reserve(num_shapes);
+
+  auto append = [&shapes, &shape_poses](shapes::Shape* s, const geometry_msgs::Pose& pose_msg) {
+    if (!s)
+      return;
+    Eigen::Isometry3d pose;
+    PlanningScene::poseMsgToEigen(pose_msg, pose);
+    shapes.emplace_back(shapes::ShapeConstPtr(s));
+    shape_poses.emplace_back(std::move(pose));
+  };
 
   for (std::size_t i = 0; i < object.primitives.size(); ++i)
-  {
-    shapes::Shape* s = shapes::constructShapeFromMsg(object.primitives[i]);
-    if (s)
-    {
-      Eigen::Isometry3d object_pose;
-      PlanningScene::poseMsgToEigen(object.primitive_poses[i], object_pose);
-      world_->addToObject(object.id, shapes::ShapeConstPtr(s), object_frame_transform * object_pose);
-    }
-  }
+    append(shapes::constructShapeFromMsg(object.primitives[i]), object.primitive_poses[i]);
   for (std::size_t i = 0; i < object.meshes.size(); ++i)
-  {
-    shapes::Shape* s = shapes::constructShapeFromMsg(object.meshes[i]);
-    if (s)
-    {
-      Eigen::Isometry3d object_pose;
-      PlanningScene::poseMsgToEigen(object.mesh_poses[i], object_pose);
-      world_->addToObject(object.id, shapes::ShapeConstPtr(s), object_frame_transform * object_pose);
-    }
-  }
+    append(shapes::constructShapeFromMsg(object.meshes[i]), object.mesh_poses[i]);
   for (std::size_t i = 0; i < object.planes.size(); ++i)
-  {
-    shapes::Shape* s = shapes::constructShapeFromMsg(object.planes[i]);
-    if (s)
-    {
-      Eigen::Isometry3d object_pose;
-      PlanningScene::poseMsgToEigen(object.plane_poses[i], object_pose);
-      world_->addToObject(object.id, shapes::ShapeConstPtr(s), object_frame_transform * object_pose);
-    }
-  }
+    append(shapes::constructShapeFromMsg(object.planes[i]), object.plane_poses[i]);
+
+  world_->addToObject(object.id, object_frame_transform, shapes, shape_poses);
+
   if (!object.type.key.empty() || !object.type.db.empty())
     setObjectType(object.id, object.type);
 
-  // Add subframes to the newly created (or possibly modified) object
-  moveit::core::FixedTransformsMap subframes = world_->getObject(object.id)->subframe_poses_;
-  Eigen::Isometry3d frame_pose;
+  // Add subframes
+  moveit::core::FixedTransformsMap subframes;
+  Eigen::Isometry3d subframe_pose;
   for (std::size_t i = 0; i < object.subframe_poses.size(); ++i)
   {
-    tf2::fromMsg(object.subframe_poses[i], frame_pose);
+    PlanningScene::poseMsgToEigen(object.subframe_poses[i], subframe_pose);
     std::string name = object.subframe_names[i];
-    subframes[name] = object_frame_transform * frame_pose;
+    subframes[name] = subframe_pose;
   }
   world_->setSubframesOfObject(object.id, subframes);
   return true;
@@ -1821,44 +1857,13 @@ bool PlanningScene::processCollisionObjectMove(const moveit_msgs::CollisionObjec
       ROS_WARN_NAMED(LOGNAME, "Move operation for object '%s' ignores the geometry specified in the message.",
                      object.id.c_str());
 
-    const Eigen::Isometry3d& t = getFrameTransform(object.header.frame_id);
-    EigenSTL::vector_Isometry3d new_poses;
-    for (const geometry_msgs::Pose& primitive_pose : object.primitive_poses)
-    {
-      Eigen::Isometry3d object_pose;
-      PlanningScene::poseMsgToEigen(primitive_pose, object_pose);
-      new_poses.push_back(t * object_pose);
-    }
-    for (const geometry_msgs::Pose& mesh_pose : object.mesh_poses)
-    {
-      Eigen::Isometry3d object_pose;
-      PlanningScene::poseMsgToEigen(mesh_pose, object_pose);
-      new_poses.push_back(t * object_pose);
-    }
-    for (const geometry_msgs::Pose& plane_pose : object.plane_poses)
-    {
-      Eigen::Isometry3d object_pose;
-      PlanningScene::poseMsgToEigen(plane_pose, object_pose);
-      new_poses.push_back(t * object_pose);
-    }
+    const Eigen::Isometry3d& world_to_object_header_transform = getFrameTransform(object.header.frame_id);
+    Eigen::Isometry3d header_to_pose_transform;
 
-    collision_detection::World::ObjectConstPtr obj = world_->getObject(object.id);
+    PlanningScene::poseMsgToEigen(object.pose, header_to_pose_transform);
 
-    if (obj->shapes_.size() == new_poses.size())
-    {
-      std::vector<shapes::ShapeConstPtr> shapes = obj->shapes_;
-      obj.reset();
-      world_->removeObject(object.id);
-      world_->addToObject(object.id, shapes, new_poses);
-    }
-    else
-    {
-      ROS_ERROR_NAMED(LOGNAME,
-                      "Number of supplied poses (%zu) for object '%s' does not match number of shapes (%zu). "
-                      "Not moving.",
-                      new_poses.size(), object.id.c_str(), obj->shapes_.size());
-      return false;
-    }
+    const Eigen::Isometry3d object_frame_transform = world_to_object_header_transform * header_to_pose_transform;
+    world_->setObjectPose(object.id, object_frame_transform);
     return true;
   }
 

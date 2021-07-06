@@ -135,7 +135,7 @@ void RobotStateVisualization::updateHelper(const moveit::core::RobotStateConstPt
       continue;
     }
     rviz::Color rcolor(color.r, color.g, color.b);
-    const EigenSTL::vector_Isometry3d& ab_t = attached_body->getFixedTransforms();
+    const EigenSTL::vector_Isometry3d& ab_t = attached_body->getShapePosesInLinkFrame();
     const std::vector<shapes::ShapeConstPtr>& ab_shapes = attached_body->getShapes();
     for (std::size_t j = 0; j < ab_shapes.size(); ++j)
     {

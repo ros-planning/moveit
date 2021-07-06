@@ -43,21 +43,23 @@ namespace moveit
 {
 namespace core
 {
-AttachedBody::AttachedBody(const LinkModel* parent_link_model, const std::string& id,
+AttachedBody::AttachedBody(const LinkModel* parent_link_model, const std::string& id, const Eigen::Isometry3d& pose,
                            const std::vector<shapes::ShapeConstPtr>& shapes,
-                           const EigenSTL::vector_Isometry3d& attach_trans, const std::set<std::string>& touch_links,
+                           const EigenSTL::vector_Isometry3d& shape_poses, const std::set<std::string>& touch_links,
                            const trajectory_msgs::JointTrajectory& detach_posture,
                            const FixedTransformsMap& subframe_poses)
   : parent_link_model_(parent_link_model)
   , id_(id)
+  , pose_(pose)
   , shapes_(shapes)
-  , attach_trans_(attach_trans)
+  , shape_poses_(shape_poses)
   , touch_links_(touch_links)
   , detach_posture_(detach_posture)
   , subframe_poses_(subframe_poses)
   , global_subframe_poses_(subframe_poses)
 {
-  for (const auto& t : attach_trans_)
+  ASSERT_ISOMETRY(pose)  // unsanitized input, could contain a non-isometry
+  for (const auto& t : shape_poses_)
   {
     ASSERT_ISOMETRY(t)  // unsanitized input, could contain a non-isometry
   }
@@ -65,9 +67,19 @@ AttachedBody::AttachedBody(const LinkModel* parent_link_model, const std::string
   {
     ASSERT_ISOMETRY(t.second)  // unsanitized input, could contain a non-isometry
   }
-  global_collision_body_transforms_.resize(attach_trans.size());
+
+  // Global poses are initialized to identity to allow efficient Isometry calculations
+  global_pose_.setIdentity();
+  global_collision_body_transforms_.resize(shape_poses.size());
   for (Eigen::Isometry3d& global_collision_body_transform : global_collision_body_transforms_)
     global_collision_body_transform.setIdentity();
+
+  shape_poses_in_link_frame_.clear();
+  shape_poses_in_link_frame_.reserve(shape_poses_.size());
+  for (const auto& shape_pose : shape_poses_)
+  {
+    shape_poses_in_link_frame_.push_back(pose_ * shape_pose);
+  }
 }
 
 AttachedBody::~AttachedBody() = default;
@@ -92,15 +104,16 @@ void AttachedBody::setScale(double scale)
 void AttachedBody::computeTransform(const Eigen::Isometry3d& parent_link_global_transform)
 {
   ASSERT_ISOMETRY(parent_link_global_transform)  // unsanitized input, could contain a non-isometry
+  global_pose_ = parent_link_global_transform * pose_;
 
   // update collision body transforms
   for (std::size_t i = 0; i < global_collision_body_transforms_.size(); ++i)
-    global_collision_body_transforms_[i] = parent_link_global_transform * attach_trans_[i];  // valid isometry
+    global_collision_body_transforms_[i] = global_pose_ * shape_poses_[i];  // valid isometry
 
   // update subframe transforms
   for (auto global = global_subframe_poses_.begin(), end = global_subframe_poses_.end(), local = subframe_poses_.begin();
        global != end; ++global, ++local)
-    global->second = parent_link_global_transform * local->second;  // valid isometry
+    global->second = global_pose_ * local->second;  // valid isometry
 }
 
 void AttachedBody::setPadding(double padding)

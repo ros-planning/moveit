@@ -60,10 +60,11 @@ public:
   /** \brief Construct an attached body for a specified \e link.
    *
    * The name of this body is \e id and it consists of \e shapes that attach to the link by the transforms
-   * \e attach_trans. The set of links that are allowed to be touched by this object is specified by \e touch_links. */
-  AttachedBody(const LinkModel* link, const std::string& id, const std::vector<shapes::ShapeConstPtr>& shapes,
-               const EigenSTL::vector_Isometry3d& attach_trans, const std::set<std::string>& touch_links,
-               const trajectory_msgs::JointTrajectory& attach_posture,
+   * \e shape_poses. The set of links that are allowed to be touched by this object is specified by \e touch_links.
+   * The shape and subframe poses are relative to the \e pose, and \e pose is relative to the parent link. */
+  AttachedBody(const LinkModel* link, const std::string& id, const Eigen::Isometry3d& pose,
+               const std::vector<shapes::ShapeConstPtr>& shapes, const EigenSTL::vector_Isometry3d& shape_poses,
+               const std::set<std::string>& touch_links, const trajectory_msgs::JointTrajectory& attach_posture,
                const moveit::core::FixedTransformsMap& subframe_poses = moveit::core::FixedTransformsMap());
 
   ~AttachedBody();
@@ -72,6 +73,18 @@ public:
   const std::string& getName() const
   {
     return id_;
+  }
+
+  /** \brief Get the pose of the attached body relative to the parent link */
+  const Eigen::Isometry3d& getPose() const
+  {
+    return pose_;
+  }
+
+  /** \brief Get the pose of the attached body, relative to the world */
+  const Eigen::Isometry3d& getGlobalPose() const
+  {
+    return global_pose_;
   }
 
   /** \brief Get the name of the link this body is attached to */
@@ -92,6 +105,13 @@ public:
     return shapes_;
   }
 
+  /** \brief Get the shape poses (the transforms to the shapes of this body, relative to the pose). The returned
+   *  transforms are guaranteed to be valid isometries. */
+  const EigenSTL::vector_Isometry3d& getShapePoses() const
+  {
+    return shape_poses_;
+  }
+
   /** \brief Get the links that the attached body is allowed to touch */
   const std::set<std::string>& getTouchLinks() const
   {
@@ -99,8 +119,7 @@ public:
   }
 
   /** \brief Return the posture that is necessary for the object to be released, (if any). This is useful for example
-     when storing
-      the configuration of a gripper holding an object */
+     when storing the configuration of a gripper holding an object */
   const trajectory_msgs::JointTrajectory& getDetachPosture() const
   {
     return detach_posture_;
@@ -108,14 +127,22 @@ public:
 
   /** \brief Get the fixed transforms (the transforms to the shapes of this body, relative to the link). The returned
    *  transforms are guaranteed to be valid isometries. */
-  const EigenSTL::vector_Isometry3d& getFixedTransforms() const
+  const EigenSTL::vector_Isometry3d& getShapePosesInLinkFrame() const
   {
-    return attach_trans_;
+    return shape_poses_in_link_frame_;
   }
 
-  /** \brief Get subframes of this object (relative to the link). The returned transforms are guaranteed to be valid
-   *  isometries. */
-  const moveit::core::FixedTransformsMap& getSubframeTransforms() const
+  /** \brief Get the fixed transforms (the transforms to the shapes of this body, relative to the link). The returned
+   *  transforms are guaranteed to be valid isometries.
+   * Deprecated. Use getShapePosesInLinkFrame instead. */
+  [[deprecated]] const EigenSTL::vector_Isometry3d& getFixedTransforms() const
+  {
+    return shape_poses_in_link_frame_;
+  }
+
+  /** \brief Get subframes of this object (relative to the object pose). The returned transforms are guaranteed to be
+   * valid isometries. */
+  const moveit::core::FixedTransformsMap& getSubframes() const
   {
     return subframe_poses_;
   }
@@ -140,14 +167,21 @@ public:
     subframe_poses_ = subframe_poses;
   }
 
-  /** \brief Get the fixed transform to a named subframe on this body (relative to the robot link)
+  /** \brief Get the fixed transform to a named subframe on this body (relative to the body's pose)
    *
    * The frame_name needs to have the object's name prepended (e.g. "screwdriver/tip" returns true if the object's
    * name is "screwdriver"). Returns an identity transform if frame_name is unknown (and set found to false).
    * The returned transform is guaranteed to be a valid isometry. */
   const Eigen::Isometry3d& getSubframeTransform(const std::string& frame_name, bool* found = nullptr) const;
 
-  /** \brief Get the fixed transform to a named subframe on this body.
+  /** \brief Get the fixed transform to a named subframe on this body (relative to the robot link)
+   *
+   * The frame_name needs to have the object's name prepended (e.g. "screwdriver/tip" returns true if the object's
+   * name is "screwdriver"). Returns an identity transform if frame_name is unknown (and set found to false).
+   * The returned transform is guaranteed to be a valid isometry. */
+  const Eigen::Isometry3d& getSubframeTransformInLinkFrame(const std::string& frame_name, bool* found = nullptr) const;
+
+  /** \brief Get the fixed transform to a named subframe on this body, relative to the world frame.
    * The frame_name needs to have the object's name prepended (e.g. "screwdriver/tip" returns true if the object's
    * name is "screwdriver"). Returns an identity transform if frame_name is unknown (and set found to false).
    * The returned transform is guaranteed to be a valid isometry. */
@@ -159,8 +193,8 @@ public:
    * name is "screwdriver"). */
   bool hasSubframeTransform(const std::string& frame_name) const;
 
-  /** \brief Get the global transforms for the collision bodies. The returned transforms are guaranteed to be valid
-   *  isometries. */
+  /** \brief Get the global transforms (in world frame) for the collision bodies. The returned transforms are
+   *  guaranteed to be valid isometries. */
   const EigenSTL::vector_Isometry3d& getGlobalCollisionBodyTransforms() const
   {
     return global_collision_body_transforms_;
@@ -182,11 +216,23 @@ private:
   /** \brief string id for reference */
   std::string id_;
 
+  /** \brief The transform from the parent link to the attached body's pose*/
+  Eigen::Isometry3d pose_;
+
+  /** \brief The transform from the model frame to the attached body's pose  */
+  Eigen::Isometry3d global_pose_;
+
   /** \brief The geometries of the attached body */
   std::vector<shapes::ShapeConstPtr> shapes_;
 
-  /** \brief The constant transforms applied to the link (needs to be specified by user) */
-  EigenSTL::vector_Isometry3d attach_trans_;
+  /** \brief The transforms from the object's pose to the object's geometries*/
+  EigenSTL::vector_Isometry3d shape_poses_;
+
+  /** \brief The transforms from the link to the object's geometries*/
+  EigenSTL::vector_Isometry3d shape_poses_in_link_frame_;
+
+  /** \brief The global transforms for the attached bodies (computed by forward kinematics) */
+  EigenSTL::vector_Isometry3d global_collision_body_transforms_;
 
   /** \brief The set of links this body is allowed to touch */
   std::set<std::string> touch_links_;
@@ -195,10 +241,7 @@ private:
       the configuration of a gripper holding an object */
   trajectory_msgs::JointTrajectory detach_posture_;
 
-  /** \brief The global transforms for these attached bodies (computed by forward kinematics) */
-  EigenSTL::vector_Isometry3d global_collision_body_transforms_;
-
-  /** \brief Transforms to subframes on the object. Transforms are relative to the link. */
+  /** \brief Transforms to subframes on the object, relative to the object's pose. */
   moveit::core::FixedTransformsMap subframe_poses_;
 
   /** \brief Transforms to subframes on the object, relative to the model frame. */

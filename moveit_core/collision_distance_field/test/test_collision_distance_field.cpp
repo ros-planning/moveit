@@ -292,14 +292,15 @@ TEST_F(DistanceFieldCollisionDetectionTester, AttachedBodyTester)
   // deletes shape
   cenv_->getWorld()->removeObject("box");
 
+  const auto identity = Eigen::Isometry3d::Identity();
   std::vector<shapes::ShapeConstPtr> shapes;
   EigenSTL::vector_Isometry3d poses;
   shapes.push_back(shapes::ShapeConstPtr(new shapes::Box(.25, .25, .25)));
-  poses.push_back(Eigen::Isometry3d::Identity());
+  poses.push_back(identity);
   std::set<std::string> touch_links;
   trajectory_msgs::JointTrajectory empty_state;
   moveit::core::AttachedBody* attached_body = new moveit::core::AttachedBody(
-      robot_state.getLinkModel("r_gripper_palm_link"), "box", shapes, poses, touch_links, empty_state);
+      robot_state.getLinkModel("r_gripper_palm_link"), "box", identity, shapes, poses, touch_links, empty_state);
 
   robot_state.attachBody(attached_body);
 
@@ -314,7 +315,7 @@ TEST_F(DistanceFieldCollisionDetectionTester, AttachedBodyTester)
   shapes[0].reset(new shapes::Box(.1, .1, .1));
 
   moveit::core::AttachedBody* attached_body_1 = new moveit::core::AttachedBody(
-      robot_state.getLinkModel("r_gripper_palm_link"), "box", shapes, poses, touch_links, empty_state);
+      robot_state.getLinkModel("r_gripper_palm_link"), "box", identity, shapes, poses, touch_links, empty_state);
   robot_state.attachBody(attached_body_1);
 
   res = collision_detection::CollisionResult();
