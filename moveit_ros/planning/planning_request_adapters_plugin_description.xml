@@ -47,4 +47,11 @@
     </description>
   </class>
 
+  <class name="default_planner_request_adapters/PublishIntermediateTrajectory" type="default_planner_request_adapters::PublishIntermediateTrajectory" base_class_type="planning_request_adapter::PlanningRequestAdapter">
+    <description>
+      This planning adapter allows you to publish an intermediate trajectory for purposes of debugging.  By default, it will publish on topic "intermediate_trajectory" in the namespace of the node handle passed in in the initialize function.
+      Only one can be added per pipeline, due to limitations in the planning_pipeline only allowing one copy of each planning adapter to be included.
+    </description>
+  </class>
+
 </library>
