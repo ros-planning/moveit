@@ -434,5 +434,8 @@ protected:
 
   // if false parallel plan returns the first solution found
   bool hybridize_;
+
+private:
+  void omplClear();
 };
 }  // namespace ompl_interface

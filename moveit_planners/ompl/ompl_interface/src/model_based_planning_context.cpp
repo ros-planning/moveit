@@ -549,11 +549,11 @@ void ompl_interface::ModelBasedPlanningContext::setCompleteInitialState(
   complete_initial_robot_state_.update();
 }
 
-void ompl_interface::ModelBasedPlanningContext::clear()
+void ompl_interface::ModelBasedPlanningContext::omplClear()
 {
   if (!multi_query_planning_enabled_)
     ompl_simple_setup_->clear();
-// TODO: remove when ROS Melodic and older are no longer supported
+    // TODO: remove when ROS Melodic and older are no longer supported
 #if OMPL_VERSION_VALUE >= 1005000
   else
   {
@@ -569,9 +569,15 @@ void ompl_interface::ModelBasedPlanningContext::clear()
   ompl_simple_setup_->clearStartStates();
   ompl_simple_setup_->setGoal(ob::GoalPtr());
   ompl_simple_setup_->setStateValidityChecker(ob::StateValidityCheckerPtr());
+  getOMPLStateSpace()->setInterpolationFunction(InterpolationFunction());
+}
+
+void ompl_interface::ModelBasedPlanningContext::clear()
+{
+  omplClear();
+
   path_constraints_.reset();
   goal_constraints_.clear();
-  getOMPLStateSpace()->setInterpolationFunction(InterpolationFunction());
 }
 
 bool ompl_interface::ModelBasedPlanningContext::setPathConstraints(const moveit_msgs::Constraints& path_constraints,
@@ -695,12 +701,14 @@ bool ompl_interface::ModelBasedPlanningContext::solve(planning_interface::Motion
     res.trajectory_.reset(new robot_trajectory::RobotTrajectory(getRobotModel(), getGroupName()));
     getSolutionPath(*res.trajectory_);
     res.planning_time_ = ptime;
+    omplClear();
     return true;
   }
   else
   {
     ROS_INFO_NAMED(LOGNAME, "Unable to solve the planning problem");
     res.error_code_.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
+    omplClear();
     return false;
   }
 }
@@ -744,12 +752,14 @@ bool ompl_interface::ModelBasedPlanningContext::solve(planning_interface::Motion
     // fill the response
     ROS_DEBUG_NAMED(LOGNAME, "%s: Returning successful solution with %lu states", getName().c_str(),
                     getOMPLSimpleSetup()->getSolutionPath().getStateCount());
+    omplClear();
     return true;
   }
   else
   {
     ROS_INFO_NAMED(LOGNAME, "Unable to solve the planning problem");
     res.error_code_.val = moveit_msgs::MoveItErrorCodes::PLANNING_FAILED;
+    omplClear();
     return false;
   }
 }
