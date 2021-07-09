@@ -302,7 +302,7 @@ bool MoveItConfigData::outputCHOMPPlanningYAML(const std::string& file_path)
   emitter << YAML::Key << "use_pseudo_inverse" << YAML::Value << "false";
   emitter << YAML::Key << "pseudo_inverse_ridge_factor" << YAML::Value << "1e-4";
   emitter << YAML::Key << "joint_update_limit" << YAML::Value << "0.1";
-  emitter << YAML::Key << "collision_clearance" << YAML::Value << "0.2";
+  emitter << YAML::Key << "collision_clearence" << YAML::Value << "0.2";
   emitter << YAML::Key << "collision_threshold" << YAML::Value << "0.07";
   emitter << YAML::Key << "use_stochastic_descent" << YAML::Value << "true";
   emitter << YAML::Key << "enable_failure_recovery" << YAML::Value << "true";
@@ -1082,17 +1082,20 @@ bool MoveItConfigData::output3DSensorPluginYAML(const std::string& file_path)
   emitter << YAML::Key << "sensors";
   emitter << YAML::Value << YAML::BeginSeq;
 
-  for (auto& sensors_plugin_config : sensors_plugin_config_parameter_list_)
-  {
-    emitter << YAML::BeginMap;
+  // Can we have more than one plugin config?
+  emitter << YAML::BeginMap;
 
-    for (auto& parameter : sensors_plugin_config)
+  // Make sure sensors_plugin_config_parameter_list_ is not empty
+  if (!sensors_plugin_config_parameter_list_.empty())
+  {
+    for (auto& parameter : sensors_plugin_config_parameter_list_[0])
     {
       emitter << YAML::Key << parameter.first;
       emitter << YAML::Value << parameter.second.getValue();
     }
-    emitter << YAML::EndMap;
   }
+
+  emitter << YAML::EndMap;
 
   emitter << YAML::EndSeq;
 
@@ -1175,8 +1178,7 @@ bool MoveItConfigData::outputJointLimitsYAML(const std::string& file_path)
       emitter << YAML::Comment("    has_position_limits: false") << YAML::Newline;
 
     // Output property
-    std::string max_position_str =
-        "    max_position: " + moveit::core::toString(std::min(fabs(b.max_position_), fabs(b.min_position_)));
+    std::string max_position_str = "    max_position: " + moveit::core::toString(std::min(fabs(b.max_position_), fabs(b.min_position_)));
     emitter << YAML::Comment(max_position_str) << YAML::Newline;
 
     // Output property
@@ -1186,8 +1188,7 @@ bool MoveItConfigData::outputJointLimitsYAML(const std::string& file_path)
       emitter << YAML::Comment("    has_velocity_limits: false") << YAML::Newline;
 
     // Output property
-    std::string max_velocity_str =
-        "    max_velocity: " + moveit::core::toString(std::min(fabs(b.max_velocity_), fabs(b.min_velocity_)));
+    std::string max_velocity_str = "    max_velocity: " + moveit::core::toString(std::min(fabs(b.max_velocity_), fabs(b.min_velocity_)));
     emitter << YAML::Comment(max_velocity_str) << YAML::Newline;
 
     // Output property
@@ -1197,10 +1198,9 @@ bool MoveItConfigData::outputJointLimitsYAML(const std::string& file_path)
       emitter << YAML::Comment("    has_acceleration_limits: false") << YAML::Newline;
 
     // Output property
-    std::string max_acceleration_str =
-        "    max_acceleration: " +
-        moveit::core::toString(std::min(fabs(b.max_acceleration_), fabs(b.min_acceleration_)));
+    std::string max_acceleration_str = "    max_acceleration: " + moveit::core::toString(std::min(fabs(b.max_acceleration_), fabs(b.min_acceleration_)));
     emitter << YAML::Comment(max_acceleration_str) << YAML::Newline;
+
   }
 
   std::ofstream output_stream(file_path.c_str(), std::ios_base::trunc);
@@ -1416,8 +1416,7 @@ bool MoveItConfigData::inputPlanningContextLaunch(const std::string& file_path)
   // find the kinematics section
   TiXmlHandle doc(&launch_document);
   TiXmlElement* kinematics_group = doc.FirstChild("launch").FirstChild("group").ToElement();
-  while (kinematics_group && kinematics_group->Attribute("ns") &&
-         kinematics_group->Attribute("ns") != std::string("$(arg robot_description)_kinematics"))
+  while (kinematics_group && kinematics_group->Attribute("ns") != std::string("$(arg robot_description)_kinematics"))
   {
     kinematics_group = kinematics_group->NextSiblingElement("group");
   }
