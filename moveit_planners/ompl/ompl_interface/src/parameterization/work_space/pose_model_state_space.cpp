@@ -38,6 +38,7 @@
 #include <ompl/base/spaces/SE3StateSpace.h>
 #include <moveit/profiler/profiler.h>
 
+#include <algorithm>
 #include <utility>
 
 namespace ompl_interface
@@ -75,7 +76,7 @@ double ompl_interface::PoseModelStateSpace::distance(const ompl::base::State* st
 {
   double total = 0;
   for (std::size_t i = 0; i < poses_.size(); ++i)
-    total += poses_[i].state_space_->distance(state1->as<StateType>()->poses[i], state2->as<StateType>()->poses[i]);
+    total += poses_[i].state_space_->distance(state1->as<StateType>()->poses()[i], state2->as<StateType>()->poses()[i]);
   return total;
 }
 
@@ -90,20 +91,22 @@ double ompl_interface::PoseModelStateSpace::getMaximumExtent() const
 ompl::base::State* ompl_interface::PoseModelStateSpace::allocState() const
 {
   auto* state = new StateType();
-  state->values =
-      new double[variable_count_];  // need to allocate this here since ModelBasedStateSpace::allocState() is not called
-  state->poses = new ompl::base::SE3StateSpace::StateType*[poses_.size()];
-  for (std::size_t i = 0; i < poses_.size(); ++i)
-    state->poses[i] = poses_[i].state_space_->allocState()->as<ompl::base::SE3StateSpace::StateType>();
+  state->setValues(std::make_unique<double[]>(variable_count_));
+  state->setPoses(std::make_unique<ompl::base::SE3StateSpace::StateType*[]>(poses_.size()));
+  std::transform(poses_.begin(), poses_.end(), state->poses(), [](const PoseComponent& pose) {
+    return pose.state_space_->allocState()->as<ompl::base::SE3StateSpace::StateType>();
+  });
   return state;
 }
 
 void ompl_interface::PoseModelStateSpace::freeState(ompl::base::State* state) const
 {
-  for (std::size_t i = 0; i < poses_.size(); ++i)
-    poses_[i].state_space_->freeState(state->as<StateType>()->poses[i]);
-  delete[] state->as<StateType>()->poses;
-  ModelBasedStateSpace::freeState(state);
+  auto state_as_statetype = state->as<StateType>();
+  auto se3state = state_as_statetype->poses()[0];
+  for (const PoseComponent& pose : poses_)
+    pose.state_space_->freeState(se3state++);
+
+  delete state_as_statetype;
 }
 
 void ompl_interface::PoseModelStateSpace::copyState(ompl::base::State* destination,
@@ -113,7 +116,7 @@ void ompl_interface::PoseModelStateSpace::copyState(ompl::base::State* destinati
   ModelBasedStateSpace::copyState(destination, source);
 
   for (std::size_t i = 0; i < poses_.size(); ++i)
-    poses_[i].state_space_->copyState(destination->as<StateType>()->poses[i], source->as<StateType>()->poses[i]);
+    poses_[i].state_space_->copyState(destination->as<StateType>()->poses()[i], source->as<StateType>()->poses()[i]);
 
   // compute additional stuff if needed
   computeStateK(destination);
@@ -138,8 +141,8 @@ void ompl_interface::PoseModelStateSpace::interpolate(const ompl::base::State* f
 
   // interpolate SE3 components
   for (std::size_t i = 0; i < poses_.size(); ++i)
-    poses_[i].state_space_->interpolate(from->as<StateType>()->poses[i], to->as<StateType>()->poses[i], t,
-                                        state->as<StateType>()->poses[i]);
+    poses_[i].state_space_->interpolate(from->as<StateType>()->poses()[i], to->as<StateType>()->poses()[i], t,
+                                        state->as<StateType>()->poses()[i]);
 
   // the call above may reset all flags for state; but we know the pose we want flag should be set
   state->as<StateType>()->setPoseComputed(true);
@@ -197,7 +200,7 @@ bool ompl_interface::PoseModelStateSpace::PoseComponent::computeStateFK(StateTyp
   // read the values from the joint state, in the order expected by the kinematics solver
   std::vector<double> values(bijection_.size());
   for (unsigned int i = 0; i < bijection_.size(); ++i)
-    values[i] = full_state->values[bijection_[i]];
+    values[i] = full_state->values()[bijection_[i]];
 
   // compute forward kinematics for the link of interest
   std::vector<geometry_msgs::Pose> poses;
@@ -205,7 +208,7 @@ bool ompl_interface::PoseModelStateSpace::PoseComponent::computeStateFK(StateTyp
     return false;
 
   // copy the resulting data to the desired location in the state
-  ompl::base::SE3StateSpace::StateType* se3_state = full_state->poses[idx];
+  ompl::base::SE3StateSpace::StateType* se3_state = full_state->poses()[idx];
   se3_state->setXYZ(poses[0].position.x, poses[0].position.y, poses[0].position.z);
   ompl::base::SO3StateSpace::StateType& so3_state = se3_state->rotation();
   so3_state.x = poses[0].orientation.x;
@@ -221,7 +224,7 @@ bool ompl_interface::PoseModelStateSpace::PoseComponent::computeStateIK(StateTyp
   // read the values from the joint state, in the order expected by the kinematics solver; use these as the seed
   std::vector<double> seed_values(bijection_.size());
   for (std::size_t i = 0; i < bijection_.size(); ++i)
-    seed_values[i] = full_state->values[bijection_[i]];
+    seed_values[i] = full_state->values()[bijection_[i]];
 
   /*
   std::cout << "seed: ";
@@ -232,7 +235,7 @@ bool ompl_interface::PoseModelStateSpace::PoseComponent::computeStateIK(StateTyp
 
   // construct the pose
   geometry_msgs::Pose pose;
-  const ompl::base::SE3StateSpace::StateType* se3_state = full_state->poses[idx];
+  const ompl::base::SE3StateSpace::StateType* se3_state = full_state->poses()[idx];
   pose.position.x = se3_state->getX();
   pose.position.y = se3_state->getY();
   pose.position.z = se3_state->getZ();
@@ -254,7 +257,7 @@ bool ompl_interface::PoseModelStateSpace::PoseComponent::computeStateIK(StateTyp
   }
 
   for (std::size_t i = 0; i < bijection_.size(); ++i)
-    full_state->values[bijection_[i]] = solution[i];
+    full_state->values()[bijection_[i]] = solution[i];
 
   return true;
 }
