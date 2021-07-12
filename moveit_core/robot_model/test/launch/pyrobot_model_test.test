@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+  <include file="$(find moveit_resources_panda_moveit_config)/launch/planning_context.launch" >
+    <arg name="load_robot_description" value="true"/>
+  </include>
+
+  <param name="test_module" value="$(find moveit_core)/robot_model/test/pyrobot_model_test.py"/>
+  <test test-name="pyrobot_model_test" pkg="ros_pytest" type="ros_pytest_runner" />
+</launch>

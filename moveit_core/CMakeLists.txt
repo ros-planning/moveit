@@ -88,6 +88,11 @@ COMPONENTS
   pluginlib
 )
 
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  find_package(ros_pytest REQUIRED)
+endif()
+
 catkin_python_setup()
 
 set(VERSION_FILE_PATH "${CATKIN_DEVEL_PREFIX}/include")
