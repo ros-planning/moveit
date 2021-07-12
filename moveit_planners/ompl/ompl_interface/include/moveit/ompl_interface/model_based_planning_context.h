@@ -45,6 +45,7 @@
 #include <ompl/tools/benchmark/Benchmark.h>
 #include <ompl/tools/multiplan/ParallelPlan.h>
 #include <ompl/base/StateStorage.h>
+#include <ompl/base/spaces/constraint/ConstrainedStateSpace.h>
 
 namespace ompl_interface
 {
@@ -69,6 +70,19 @@ struct ModelBasedPlanningContextSpecification
 
   ModelBasedStateSpacePtr state_space_;
   og::SimpleSetupPtr ompl_simple_setup_;  // pass in the correct simple setup type
+
+  /** \brief OMPL constrained state space to handle path constraints.
+   *
+   * When the parameter "use_ompl_constrained_planning" is set to true in ompl_planning.yaml,
+   * the path constraints are handled by this state space.
+   *
+   * **Important**: because code often depents on the attribute `state_space_` to copy states from MoveIt to OMPL, we
+   * must set `state_space_` to have type `ompl_interface::ConstrainedPlanningStateSpace`. The actual planning does
+   * not happen with this `state_space_`, but it is used to create the `constrained_state_space_` of type
+   * `ompl::base::ConstrainedStateSpace`. The latter is the one passed to OMPL simple setup (after creating a
+   * ConstrainedSpaceInformation object from it).
+   * */
+  ob::ConstrainedStateSpacePtr constrained_state_space_;
 };
 
 class ModelBasedPlanningContext : public planning_interface::PlanningContext

@@ -178,7 +178,8 @@ void ompl_interface::OMPLInterface::loadPlannerConfigurations()
   {
     // the set of planning parameters that can be specific for the group (inherited by configurations of that group)
     static const std::string KNOWN_GROUP_PARAMS[] = { "projection_evaluator", "longest_valid_segment_fraction",
-                                                      "enforce_joint_model_state_space" };
+                                                      "enforce_joint_model_state_space",
+                                                      "enforce_constrained_state_space" };
 
     // get parameters specific for the robot planning group
     std::map<std::string, std::string> specific_group_params;

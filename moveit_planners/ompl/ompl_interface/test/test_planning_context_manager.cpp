@@ -63,6 +63,7 @@
 #include <moveit/kinematic_constraints/utils.h>
 #include <moveit/constraint_samplers/constraint_sampler_manager.h>
 #include <moveit/ompl_interface/parameterization/joint_space/joint_model_state_space.h>
+#include <moveit/ompl_interface/parameterization/joint_space/constrained_planning_state_space.h>
 
 /** \brief Generic implementation of the tests that can be executed on different robots. **/
 class TestPlanningContext : public ompl_interface_testing::LoadTestRobot, public testing::Test
@@ -83,7 +84,8 @@ public:
     planning_interface::PlannerConfigurationSettings pconfig_settings;
     pconfig_settings.group = group_name_;
     pconfig_settings.name = group_name_;
-    pconfig_settings.config = { { "enforce_joint_model_state_space", "0" } };
+    pconfig_settings.config = { { "enforce_joint_model_state_space", "0" },
+                                { "use_ompl_constrained_state_space", "0" } };
 
     planning_interface::PlannerConfigurationMap pconfig_map{ { pconfig_settings.name, pconfig_settings } };
     moveit_msgs::MoveItErrorCodes error_code;
@@ -116,7 +118,8 @@ public:
     planning_interface::PlannerConfigurationSettings pconfig_settings;
     pconfig_settings.group = group_name_;
     pconfig_settings.name = group_name_;
-    pconfig_settings.config = { { "enforce_joint_model_state_space", "0" } };
+    pconfig_settings.config = { { "enforce_joint_model_state_space", "0" },
+                                { "use_ompl_constrained_state_space", "0" } };
 
     planning_interface::PlannerConfigurationMap pconfig_map{ { pconfig_settings.name, pconfig_settings } };
     moveit_msgs::MoveItErrorCodes error_code;
@@ -128,7 +131,7 @@ public:
     // create path constraints around start state,  to make sure they are satisfied
     robot_state_->setJointGroupPositions(joint_model_group_, start);
     Eigen::Isometry3d ee_pose = robot_state_->getGlobalLinkTransform(ee_link_name_);
-    geometry_msgs::Quaternion ee_orientation = tf2::toMsg(Eigen::Quaterniond(ee_pose.rotation()));
+    const geometry_msgs::Quaternion ee_orientation = tf2::toMsg(Eigen::Quaterniond(ee_pose.rotation()));
 
     // setup the planning context manager
     ompl_interface::PlanningContextManager pcm(robot_model_, constraint_sampler_manager_);
@@ -202,6 +205,62 @@ public:
         EXPECT_TRUE(path_constraints->decide(trajectory->getWayPoint(pt_index)).satisfied);
       }
     }
+  }
+
+  void testOMPLConstrainedPlanning(const std::vector<double>& start, const std::vector<double>& goal)
+  {
+    // create all the test specific input necessary to make the getPlanningContext call possible
+    planning_interface::PlannerConfigurationSettings pconfig_settings;
+    pconfig_settings.group = group_name_;
+    pconfig_settings.name = group_name_;
+    pconfig_settings.config = { { "enforce_joint_model_state_space", "0" },
+                                { "enforce_constrained_state_space", "1" },
+                                { "projection_evaluator", "joints(joint_1,joint_2)" },
+                                { "longest_valid_segment_fraction", "0.05" } };
+
+    // RRTConnect configuration
+    planning_interface::PlannerConfigurationSettings rrt_config;
+    rrt_config.group = group_name_;
+    rrt_config.name = group_name_ + "[RRTConnect]";
+    rrt_config.config = { { "enforce_joint_model_state_space", "0" },
+                          { "enforce_constrained_state_space", "1" },
+                          { "projection_evaluator", "joints(joint_1,joint_2)" },
+                          { "longest_valid_segment_fraction", "0.05" },
+                          { "type", "geometric::RRTConnect" },
+                          { "range", "0.0" } };
+
+    planning_interface::PlannerConfigurationMap pconfig_map{ { pconfig_settings.name, pconfig_settings },
+                                                             { rrt_config.name, rrt_config } };
+    moveit_msgs::MoveItErrorCodes error_code;
+    planning_interface::MotionPlanRequest request = createRequest(start, goal);
+
+    // create path constraints around start state, to make sure they are satisfied
+    robot_state_->setJointGroupPositions(joint_model_group_, start);
+    Eigen::Isometry3d ee_pose = robot_state_->getGlobalLinkTransform(ee_link_name_);
+    // const geometry_msgs::Quaternion ee_orientation = tf2::toMsg(Eigen::Quaterniond(ee_pose.rotation()));
+    // request.path_constraints.orientation_constraints.push_back(createOrientationConstraint(ee_orientation));
+    request.path_constraints.position_constraints.push_back(createPositionConstraint(
+        { ee_pose.translation().x(), ee_pose.translation().y(), ee_pose.translation().z() }, { 1.0, 1.0, 1.0 }));
+
+    request.planner_id = "RRTConnect";
+    // give it some more time
+    request.allowed_planning_time = 20.0;
+
+    // setup the planning context manager
+    ompl_interface::PlanningContextManager pcm(robot_model_, constraint_sampler_manager_);
+    pcm.setPlannerConfigurations(pconfig_map);
+
+    // Check if it returns the expected planning context
+    auto pc = pcm.getPlanningContext(planning_scene_, request, error_code, node_handle_, false);
+    EXPECT_NE(pc->getOMPLSimpleSetup(), nullptr);
+
+    auto ss = dynamic_cast<ompl_interface::ConstrainedPlanningStateSpace*>(pc->getOMPLStateSpace().get());
+    ASSERT_NE(ss, nullptr);
+
+    EXPECT_EQ(ss->getDimension(), num_dofs_);
+
+    planning_interface::MotionPlanDetailedResponse res;
+    EXPECT_TRUE(pc->solve(res));
   }
 
   // /***************************************************************************
@@ -324,6 +383,11 @@ TEST_F(PandaTestPlanningContext, testPathConstraints)
   testPathConstraints({ 0, -0.785, 0, -2.356, 0, 1.571, 0.785 }, { 0, -0.785, 0, -2.356, 0, 1.571, 0.685 });
 }
 
+TEST_F(PandaTestPlanningContext, testOMPLConstrainedPlanning)
+{
+  testOMPLConstrainedPlanning({ 0, -0.785, 0, -2.356, 0, 1.571, 0.785 }, { 0, -0.785, 0, -2.356, 0, 1.571, 0.685 });
+}
+
 /***************************************************************************
  * Run all tests on the Fanuc robot
  * ************************************************************************/
@@ -343,6 +407,11 @@ TEST_F(FanucTestPlanningContext, testSimpleRequest)
 TEST_F(FanucTestPlanningContext, testPathConstraints)
 {
   testPathConstraints({ 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0.1 });
+}
+
+TEST_F(FanucTestPlanningContext, testOMPLConstrainedPlanning)
+{
+  testOMPLConstrainedPlanning({ 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0.1 });
 }
 
 /***************************************************************************

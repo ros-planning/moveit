@@ -115,6 +115,29 @@ protected:
     ROS_INFO_STREAM("Created test robot named: " << robot_name_ << " for planning group " << group_name_);
   }
 
+  Eigen::VectorXd getRandomState()
+  {
+    robot_state_->setToRandomPositions(joint_model_group_);
+    Eigen::VectorXd q;
+    robot_state_->copyJointGroupPositions(joint_model_group_, q);
+    return q;
+  }
+
+  /** \brief Create a joint position vector with values 0.1, 0.2, 0.3, ...
+   * where the length depends on the number of joints in the robot.
+   **/
+  Eigen::VectorXd getDeterministicState()
+  {
+    Eigen::VectorXd state(num_dofs_);
+    double value = 0.1;
+    for (std::size_t i = 0; i < num_dofs_; ++i)
+    {
+      state[i] = value;
+      value += 0.1;
+    }
+    return state;
+  }
+
 protected:
   const std::string group_name_;
   const std::string robot_name_;
