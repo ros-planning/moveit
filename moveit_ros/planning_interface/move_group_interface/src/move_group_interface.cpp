@@ -786,7 +786,7 @@ public:
     return pick(constructPickupGoal(object.id, std::move(response.grasps), plan_only));
   }
 
-  MoveItErrorCode plan(Plan& plan)
+  MoveItErrorCode plan(Plan& plan, const std::string& pipeline_id, const std::string& planner_id)
   {
     if (!move_action_client_)
     {
@@ -798,6 +798,8 @@ public:
       ROS_WARN_STREAM_NAMED(LOGNAME, "move action server not connected");
       return MoveItErrorCode(moveit_msgs::MoveItErrorCodes::COMMUNICATION_FAILURE);
     }
+    const std::string current_pipeline_id = planning_pipeline_id_;
+    const std::string current_planner_id = planner_id_;
 
     moveit_msgs::MoveGroupGoal goal;
     constructGoal(goal);
@@ -806,6 +808,11 @@ public:
     goal.planning_options.replan = false;
     goal.planning_options.planning_scene_diff.is_diff = true;
     goal.planning_options.planning_scene_diff.robot_state.is_diff = true;
+
+    if (pipeline_id != "_")  // Overwrite default setting with supplied parameters
+      goal.request.pipeline_id = planning_pipeline_id_;
+    if (planner_id != "_")
+      goal.request.planner_id = planner_id_;
 
     move_action_client_->sendGoal(goal);
     if (!move_action_client_->waitForResult())
@@ -827,7 +834,7 @@ public:
     }
   }
 
-  MoveItErrorCode move(bool wait)
+  MoveItErrorCode move(bool wait, const std::string& pipeline_id, const std::string& planner_id)
   {
     if (!move_action_client_)
     {
@@ -848,6 +855,11 @@ public:
     goal.planning_options.replan_delay = replan_delay_;
     goal.planning_options.planning_scene_diff.is_diff = true;
     goal.planning_options.planning_scene_diff.robot_state.is_diff = true;
+
+    if (pipeline_id != "_")  // Overwrite default setting with supplied parameters
+      goal.request.pipeline_id = planning_pipeline_id_;
+    if (planner_id != "_")
+      goal.request.planner_id = planner_id_;
 
     move_action_client_->sendGoal(goal);
     if (!wait)
@@ -1496,9 +1508,9 @@ void MoveGroupInterface::setMaxAccelerationScalingFactor(double max_acceleration
   impl_->setMaxAccelerationScalingFactor(max_acceleration_scaling_factor);
 }
 
-MoveItErrorCode MoveGroupInterface::asyncMove()
+MoveItErrorCode MoveGroupInterface::asyncMove(const std::string& pipeline_id, const std::string& planner_id)
 {
-  return impl_->move(false);
+  return impl_->move(false, pipeline_id, planner_id);
 }
 
 actionlib::SimpleActionClient<moveit_msgs::MoveGroupAction>& MoveGroupInterface::getMoveGroupClient() const
@@ -1506,9 +1518,9 @@ actionlib::SimpleActionClient<moveit_msgs::MoveGroupAction>& MoveGroupInterface:
   return impl_->getMoveGroupClient();
 }
 
-MoveItErrorCode MoveGroupInterface::move()
+MoveItErrorCode MoveGroupInterface::move(const std::string& pipeline_id, const std::string& planner_id)
 {
-  return impl_->move(true);
+  return impl_->move(true, pipeline_id, planner_id);
 }
 
 MoveItErrorCode MoveGroupInterface::asyncExecute(const Plan& plan)
@@ -1531,9 +1543,9 @@ MoveItErrorCode MoveGroupInterface::execute(const moveit_msgs::RobotTrajectory& 
   return impl_->execute(trajectory, true);
 }
 
-MoveItErrorCode MoveGroupInterface::plan(Plan& plan)
+MoveItErrorCode MoveGroupInterface::plan(Plan& plan, const std::string& pipeline_id, const std::string& planner_id)
 {
-  return impl_->plan(plan);
+  return impl_->plan(plan, pipeline_id, planner_id);
 }
 
 moveit_msgs::PickupGoal MoveGroupInterface::constructPickupGoal(const std::string& object,

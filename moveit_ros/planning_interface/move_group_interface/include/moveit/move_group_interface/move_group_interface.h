@@ -721,6 +721,12 @@ public:
       This call is not blocking (does not wait for the execution of the trajectory to complete). */
   MoveItErrorCode asyncMove();
 
+  /** \brief Plan and execute a trajectory that takes the group of joints declared in the constructor to the specified
+     target.
+      This call is not blocking (does not wait for the execution of the trajectory to complete).
+      The planning pipeline and planner specified in \e pipeline_id and \e planner_id is used. */
+  MoveItErrorCode asyncMove(const std::string& pipeline_id, const std::string& planner_id);
+
   /** \brief Get the move_group action client used by the \e MoveGroupInterface.
       The client can be used for querying the execution state of the trajectory and abort trajectory execution
       during asynchronous execution. */
@@ -729,13 +735,15 @@ public:
   /** \brief Plan and execute a trajectory that takes the group of joints declared in the constructor to the specified
      target.
       This call is always blocking (waits for the execution of the trajectory to complete) and requires an asynchronous
-     spinner to be started.*/
-  MoveItErrorCode move();
+     spinner to be started.
+     The planning pipeline and planner specified in \e pipeline_id and \e planner_id is used. */
+  MoveItErrorCode move(const std::string& pipeline_id = "_", const std::string& planner_id = "_");
 
   /** \brief Compute a motion plan that takes the group declared in the constructor from the current state to the
      specified
-      target. No execution is performed. The resulting plan is stored in \e plan*/
-  MoveItErrorCode plan(Plan& plan);
+      target. No execution is performed. The resulting plan is stored in \e plan.
+      The planning pipeline and planner specified in \e pipeline_id and \e planner_id is used. */
+  MoveItErrorCode plan(Plan& plan, const std::string& pipeline_id = "_", const std::string& planner_id = "_");
 
   /** \brief Given a \e plan, execute it without waiting for completion. */
   MoveItErrorCode asyncExecute(const Plan& plan);

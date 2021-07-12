@@ -588,8 +588,12 @@ class MoveGroupCommander(object):
                 "Expected value in the range from 0 to 1 for scaling factor"
             )
 
-    def go(self, joints=None, wait=True):
-        """ Set the target of the group and then move the group to the specified target """
+    def go(self, joints=None, wait=True, planning_pipeline="", planner_id=""):
+        """Set the target of the group and then move the group to the specified target.
+        If wait is True, the command waits until planning and execution have finished.
+
+        Optional: If planning_pipeline and planner_id are set, the specified planner is used only for this motion.
+                  Otherwise, the default is used (accessible via get_planning_pipeline_id and get_planner_id)."""
         if type(joints) is bool:
             wait = joints
             joints = None
@@ -605,15 +609,29 @@ class MoveGroupCommander(object):
                 self.set_joint_value_target(self.get_remembered_joint_values()[joints])
             except TypeError:
                 self.set_joint_value_target(joints)
-        if wait:
-            return self._g.move()
-        else:
-            return self._g.async_move()
 
-    def plan(self, joints=None):
-        """Return a tuple of the motion planning results such as
+        # If only planner_id set, specify planning pipeline too
+        if planner_id and not planning_pipeline:
+            planning_pipeline = self.get_planning_pipeline_id()
+
+        if wait:
+            if planning_pipeline:
+                return self._g.move(planning_pipeline, planner_id)
+            else:
+                return self._g.move()
+        else:
+            if planning_pipeline:
+                return self._g.async_move(planning_pipeline, planner_id)
+            else:
+                return self._g.async_move()
+
+    def plan(self, joints=None, planning_pipeline="", planner_id=""):
+        """Return a tuple of the motion planning results of the format:
         (success flag : boolean, trajectory message : RobotTrajectory,
-         planning time : float, error code : MoveitErrorCodes)"""
+         planning time : float, error code : MoveitErrorCodes)
+
+        Optional: If planning_pipeline and planner_id are set, the specified planner is used only for this motion.
+                  Otherwise, the default is used (accessible via get_planning_pipeline_id and get_planner_id)."""
         if type(joints) is JointState:
             self.set_joint_value_target(joints)
 
@@ -626,7 +644,16 @@ class MoveGroupCommander(object):
             except MoveItCommanderException:
                 self.set_joint_value_target(joints)
 
-        (error_code_msg, trajectory_msg, planning_time) = self._g.plan()
+        # If only planner_id set, specify planning pipeline too
+        if planner_id and not planning_pipeline:
+            planning_pipeline = self.get_planning_pipeline_id()
+
+        if planning_pipeline:
+            (error_code_msg, trajectory_msg, planning_time) = self._g.plan(
+                planning_pipeline, planner_id
+            )
+        else:
+            (error_code_msg, trajectory_msg, planning_time) = self._g.plan()
 
         error_code = MoveItErrorCodes()
         error_code.deserialize(error_code_msg)

@@ -58,7 +58,7 @@ TrajectoryGeneratorPTP::TrajectoryGeneratorPTP(const robot_model::RobotModelCons
   // collect most strict joint limits for each group in robot model
   for (const auto& jmg : robot_model->getJointModelGroups())
   {
-    auto active_joints = jmg->getActiveJointModelNames();
+    const auto& active_joints = jmg->getActiveJointModelNames();
 
     // no active joints
     if (active_joints.empty())
