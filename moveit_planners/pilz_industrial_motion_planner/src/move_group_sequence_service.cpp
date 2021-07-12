@@ -71,7 +71,18 @@ bool MoveGroupSequenceService::plan(moveit_msgs::GetMotionSequence::Request& req
   RobotTrajCont traj_vec;
   try
   {
-    traj_vec = command_list_manager_->solve(ps, context_->planning_pipeline_, req.request);
+    // Select planning_pipeline to handle request
+    // All motions in the SequenceRequest need to use the same planning pipeline (but can use different planners)
+    const planning_pipeline::PlanningPipelinePtr planning_pipeline =
+        resolvePlanningPipeline(req.request.items[0].req.pipeline_id);
+    if (!planning_pipeline)
+    {
+      ROS_ERROR_STREAM("Could not load planning pipeline " << req.request.items[0].req.pipeline_id);
+      res.response.error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
+      return false;
+    }
+
+    traj_vec = command_list_manager_->solve(ps, planning_pipeline, req.request);
   }
   catch (const MoveItErrorCodeException& ex)
   {
