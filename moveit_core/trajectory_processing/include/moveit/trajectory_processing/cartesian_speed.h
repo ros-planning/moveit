@@ -1,7 +1,8 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2011, Willow Garage, Inc.
+ *  Copyright (c) 2020, Benjamin Scholz
+ *  Copyright (c) 2021, Thies Oelerich
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -14,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of Willow Garage nor the names of its
+ *   * Neither the name of the authors nor the names of other
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -32,39 +33,21 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* Author: Ken Anderson */
+/* Authors: Benjamin Scholz, Thies Oelerich */
 
 #pragma once
 
-#include <moveit/robot_trajectory/robot_trajectory.h>
+#include <moveit/macros/class_forward.h>
+#include <string>
+namespace trajectory_processing
+{
+MOVEIT_CLASS_FORWARD(RobotTrajectory);
+}  // namespace trajectory_processing
 
 namespace trajectory_processing
 {
-/// \brief This class  modifies the timestamps of a trajectory to respect
-/// velocity and acceleration constraints.
-class IterativeParabolicTimeParameterization
-{
-public:
-  IterativeParabolicTimeParameterization(unsigned int max_iterations = 100, double max_time_change_per_it = .01);
-  ~IterativeParabolicTimeParameterization() = default;
-
-  bool computeTimeStamps(robot_trajectory::RobotTrajectory& trajectory, const double max_velocity_scaling_factor = 1.0,
-                         const double max_acceleration_scaling_factor = 1.0) const;
-
-  static void updateTrajectory(robot_trajectory::RobotTrajectory& rob_trajectory, const std::vector<double>& time_diff);
-
-private:
-  unsigned int max_iterations_;    /// @brief maximum number of iterations to find solution
-  double max_time_change_per_it_;  /// @brief maximum allowed time change per iteration in seconds
-
-  void applyVelocityConstraints(robot_trajectory::RobotTrajectory& rob_trajectory, std::vector<double>& time_diff,
-                                const double max_velocity_scaling_factor) const;
-
-  void applyAccelerationConstraints(robot_trajectory::RobotTrajectory& rob_trajectory, std::vector<double>& time_diff,
-                                    const double max_acceleration_scaling_factor) const;
-
-  double findT1(const double d1, const double d2, double t1, const double t2, const double a_max) const;
-  double findT2(const double d1, const double d2, const double t1, double t2, const double a_max) const;
-};
-
+bool limitMaxCartesianLinkSpeed(robot_trajectory::RobotTrajectory& trajectory, const double speed,
+                                const moveit::core::LinkModel* link_model);
+bool limitMaxCartesianLinkSpeed(robot_trajectory::RobotTrajectory& trajectory, const double speed,
+                                std::string link_name = "");
 }  // namespace trajectory_processing

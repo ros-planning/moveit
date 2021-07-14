@@ -181,11 +181,10 @@ double IterativeParabolicTimeParameterization::findT2(const double dq1, const do
   return dt2;
 }
 
-namespace
-{
 // Takes the time differences, and updates the timestamps, velocities and accelerations
 // in the trajectory.
-void updateTrajectory(robot_trajectory::RobotTrajectory& rob_trajectory, const std::vector<double>& time_diff)
+void IterativeParabolicTimeParameterization::updateTrajectory(robot_trajectory::RobotTrajectory& rob_trajectory,
+                                                              const std::vector<double>& time_diff)
 {
   // Error check
   if (time_diff.empty())
@@ -292,7 +291,6 @@ void updateTrajectory(robot_trajectory::RobotTrajectory& rob_trajectory, const s
     }
   }
 }
-}  // namespace
 
 // Applies Acceleration constraints
 void IterativeParabolicTimeParameterization::applyAccelerationConstraints(
@@ -479,7 +477,7 @@ bool IterativeParabolicTimeParameterization::computeTimeStamps(robot_trajectory:
   applyVelocityConstraints(trajectory, time_diff, max_velocity_scaling_factor);
   applyAccelerationConstraints(trajectory, time_diff, max_acceleration_scaling_factor);
 
-  updateTrajectory(trajectory, time_diff);
+  IterativeParabolicTimeParameterization::updateTrajectory(trajectory, time_diff);
   return true;
 }
 }  // namespace trajectory_processing

@@ -45,6 +45,7 @@
 #include <moveit/robot_state/cartesian_interpolator.h>
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
+#include <moveit/trajectory_processing/cartesian_speed.h>
 
 namespace
 {
@@ -158,9 +159,15 @@ bool MoveGroupCartesianPathService::computeService(moveit_msgs::GetCartesianPath
             rt.addSuffixWayPoint(traj_state, 0.0);
 
           // time trajectory
-          // \todo optionally compute timing to move the eef with constant speed
           trajectory_processing::IterativeParabolicTimeParameterization time_param;
           time_param.computeTimeStamps(rt, 1.0);
+
+          // optionally compute timing to move the eef with constant speed
+          if (req.max_cartesian_speed > 0.0)
+          {
+            trajectory_processing::limitMaxCartesianLinkSpeed(rt, req.max_cartesian_speed,
+                                                              req.cartesian_speed_limited_link);
+          }
 
           rt.getRobotTrajectoryMsg(res.solution);
           ROS_INFO_NAMED(getName(), "Computed Cartesian path with %u points (followed %lf%% of requested trajectory)",
