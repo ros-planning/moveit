@@ -19,7 +19,7 @@ jobs:
         env:
           - IMAGE: noetic-ci
             CCOV: true
-            BUILDER: catkin_tools_devel
+            BUILDER: catkin_make_isolated_devel
           - IMAGE: noetic-ci-shadow-fixed
             IKFAST_TEST: true
             CATKIN_LINT: true
@@ -105,7 +105,7 @@ jobs:
         run: |
           moveit_kinematics/test/test_ikfast_plugins.sh
       - id: industrial_ci
-        uses: ros-industrial/industrial_ci@master
+        uses: rhaschke/industrial_ci@feature/catkin-make-isolated-devel
         env: ${{ matrix.env }}
 
       - name: upload test artifacts (on failure)
