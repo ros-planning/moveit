@@ -104,15 +104,15 @@ jobs:
         if: ${{ matrix.env.IKFAST_TEST }}
         run: |
           moveit_kinematics/test/test_ikfast_plugins.sh
-      - name: industrial_ci
+      - id: industrial_ci
         uses: ros-industrial/industrial_ci@master
         env: ${{ matrix.env }}
 
       - name: upload test artifacts (on failure)
         uses: actions/upload-artifact@v2
-        if: failure()
+        if: steps.industrial_ci.outcome != 'success'
         with:
-          name: test-results
+          name: test-results-${{ matrix.env.IMAGE }}
           path: ${{ env.BASEDIR }}/target_ws/**/test_results/**/*.xml
       - name: upload codecov report
         uses: codecov/codecov-action@v1
