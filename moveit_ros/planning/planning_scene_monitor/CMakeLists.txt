@@ -10,6 +10,7 @@ target_link_libraries(${MOVEIT_LIB_NAME}
   moveit_collision_plugin_loader
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES})
+add_dependencies(${MOVEIT_LIB_NAME} ${PROJECT_NAME}_gencfg) # don't build before DynamicReconfigureConfig.h exists
 
 add_executable(demo_scene demos/demo_scene.cpp)
 target_link_libraries(demo_scene ${MOVEIT_LIB_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES})

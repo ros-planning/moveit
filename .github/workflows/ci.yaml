@@ -19,6 +19,7 @@ jobs:
         env:
           - IMAGE: noetic-ci
             CCOV: true
+            BUILDER: catkin_make_isolated_devel
           - IMAGE: noetic-ci-shadow-fixed
             IKFAST_TEST: true
             CATKIN_LINT: true
@@ -41,7 +42,7 @@ jobs:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
       BASEDIR: ${{ github.workspace }}/.work
       CLANG_TIDY_BASE_REF: "${{ github.base_ref || github.ref }}"
-      BUILDER: catkin_tools
+      BUILDER: ${{ matrix.env.BUILDER || 'catkin_tools' }}
 
     name: "${{ matrix.env.IMAGE }}${{ matrix.env.CATKIN_LINT && ' + catkin_lint' || ''}}${{ matrix.env.CCOV && ' + ccov' || ''}}${{ matrix.env.IKFAST_TEST && ' + ikfast' || ''}}${{ matrix.env.CLANG_TIDY && ' + clang-tidy' || '' }}"
     runs-on: ubuntu-latest
@@ -68,7 +69,7 @@ jobs:
           key: ${{ env.CACHE_PREFIX }}-${{ github.run_id }}
           restore-keys: ${{ env.CACHE_PREFIX }}
         env:
-          CACHE_PREFIX: upstream_ws-${{ matrix.env.IMAGE }}-${{ hashFiles('.github/workflows/upstream.rosinstall') }}
+          CACHE_PREFIX: upstream_ws-${{ matrix.env.IMAGE }}-${{ hashFiles('.github/workflows/upstream.rosinstall', '.github/workflows/ci.yaml') }}
       - name: cache downstream workspace
         uses: pat-s/always-upload-cache@v2.1.3
         with:
@@ -76,7 +77,7 @@ jobs:
           key: ${{ env.CACHE_PREFIX }}-${{ github.run_id }}
           restore-keys: ${{ env.CACHE_PREFIX }}
         env:
-          CACHE_PREFIX: downstream_ws-${{ matrix.env.IMAGE }}-${{ hashFiles('.github/workflows/downstream.rosinstall') }}
+          CACHE_PREFIX: downstream_ws-${{ matrix.env.IMAGE }}-${{ hashFiles('.github/workflows/downstream.rosinstall', '.github/workflows/ci.yaml') }}
       # The target directory cache doesn't include the source directory because
       # that comes from the checkout.  See "prepare target_ws for cache" task below
       - name: cache target workspace
@@ -87,7 +88,7 @@ jobs:
           key: ${{ env.CACHE_PREFIX }}-${{ github.run_id }}
           restore-keys: ${{ env.CACHE_PREFIX }}
         env:
-          CACHE_PREFIX: target_ws${{ matrix.env.CCOV && '-ccov' || '' }}-${{ matrix.env.IMAGE }}-${{ hashFiles('**/CMakeLists.txt', '**/package.xml') }}
+          CACHE_PREFIX: target_ws${{ matrix.env.CCOV && '-ccov' || '' }}-${{ matrix.env.IMAGE }}-${{ hashFiles('**/CMakeLists.txt', '**/package.xml', '.github/workflows/ci.yaml') }}
       - name: cache ccache
         uses: pat-s/always-upload-cache@v2.1.3
         with:
@@ -103,15 +104,15 @@ jobs:
         if: ${{ matrix.env.IKFAST_TEST }}
         run: |
           moveit_kinematics/test/test_ikfast_plugins.sh
-      - name: industrial_ci
-        uses: ros-industrial/industrial_ci@master
+      - id: industrial_ci
+        uses: rhaschke/industrial_ci@feature/catkin-make-isolated-devel
         env: ${{ matrix.env }}
 
       - name: upload test artifacts (on failure)
         uses: actions/upload-artifact@v2
-        if: failure()
+        if: steps.industrial_ci.outcome != 'success'
         with:
-          name: test-results
+          name: test-results-${{ matrix.env.IMAGE }}
           path: ${{ env.BASEDIR }}/target_ws/**/test_results/**/*.xml
       - name: upload codecov report
         uses: codecov/codecov-action@v1
