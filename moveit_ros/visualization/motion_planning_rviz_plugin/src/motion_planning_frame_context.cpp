@@ -131,9 +131,9 @@ void MotionPlanningFrame::computeDatabaseConnectButtonClicked()
       conn->setParams(ui_->database_host->text().toStdString(), ui_->database_port->value(), 5.0);
       if (conn->connect())
       {
-        planning_scene_storage_.reset(new moveit_warehouse::PlanningSceneStorage(conn));
-        robot_state_storage_.reset(new moveit_warehouse::RobotStateStorage(conn));
-        constraints_storage_.reset(new moveit_warehouse::ConstraintsStorage(conn));
+        planning_scene_storage_ = std::make_shared<moveit_warehouse::PlanningSceneStorage>(conn);
+        robot_state_storage_ = std::make_shared<moveit_warehouse::RobotStateStorage>(conn);
+        constraints_storage_ = std::make_shared<moveit_warehouse::ConstraintsStorage>(conn);
       }
       else
       {

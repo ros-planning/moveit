@@ -88,7 +88,7 @@ void IntegrationTestSequenceService::SetUp()
   robot_model_loader::RobotModelLoader model_loader;
   robot_model_ = model_loader.getModel();
 
-  data_loader_.reset(new XmlTestdataLoader(test_data_file_name_, robot_model_));
+  data_loader_ = std::make_unique<XmlTestdataLoader>(test_data_file_name_, robot_model_);
   ASSERT_NE(nullptr, data_loader_) << "Failed to load test data by provider.";
 
   ASSERT_TRUE(ros::service::waitForService(pilz_industrial_motion_planner::SEQUENCE_SERVICE_NAME, ros::Duration(10)))

@@ -74,11 +74,11 @@ protected:
   {
     robot_model_ = moveit::core::loadTestingRobotModel("pr2");
 
-    pr2_kinematics_plugin_right_arm_.reset(new pr2_arm_kinematics::PR2ArmKinematicsPlugin);
+    pr2_kinematics_plugin_right_arm_ = std::make_shared<pr2_arm_kinematics::PR2ArmKinematicsPlugin>();
     pr2_kinematics_plugin_right_arm_->initialize(*robot_model_, "right_arm", "torso_lift_link", { "r_wrist_roll_link" },
                                                  .01);
 
-    pr2_kinematics_plugin_left_arm_.reset(new pr2_arm_kinematics::PR2ArmKinematicsPlugin);
+    pr2_kinematics_plugin_left_arm_ = std::make_shared<pr2_arm_kinematics::PR2ArmKinematicsPlugin>();
     pr2_kinematics_plugin_left_arm_->initialize(*robot_model_, "left_arm", "torso_lift_link", { "l_wrist_roll_link" },
                                                 .01);
 
@@ -93,7 +93,7 @@ protected:
 
     robot_model_->setKinematicsAllocators(allocators);
 
-    ps_.reset(new planning_scene::PlanningScene(robot_model_));
+    ps_ = std::make_shared<planning_scene::PlanningScene>(robot_model_);
   };
 
   void TearDown() override

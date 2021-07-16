@@ -98,8 +98,8 @@ moveit_benchmarks::BenchmarkExecution::BenchmarkExecution(const planning_scene::
   // load the pluginlib class loader
   try
   {
-    planner_plugin_loader_.reset(new pluginlib::ClassLoader<planning_interface::PlannerManager>(
-        "moveit_core", "planning_interface::PlannerManager"));
+    planner_plugin_loader_ = std::make_shared<pluginlib::ClassLoader<planning_interface::PlannerManager>>(
+        "moveit_core", "planning_interface::PlannerManager");
   }
   catch (pluginlib::PluginlibException& ex)
   {
@@ -274,7 +274,7 @@ void moveit_benchmarks::BenchmarkExecution::runAllBenchmarks(BenchmarkType type)
 
       if (got_robot_state)
       {
-        start_state_to_use.reset(new moveit_msgs::RobotState(*robot_state));
+        start_state_to_use = std::make_shared<moveit_msgs::RobotState(*robot_state));
         ROS_INFO("Loaded start state '%s'", state_name.c_str());
       }
       else
@@ -665,7 +665,7 @@ bool moveit_benchmarks::BenchmarkExecution::readOptions(const std::string& filen
         {
           if (bpo)
             options_.plugins.push_back(*bpo);
-          bpo.reset(new PlanningPluginOptions());
+          bpo = std::make_shared<PlanningPluginOptions());
           bpo->name = val;
           bpo->runs = default_run_count;
         }

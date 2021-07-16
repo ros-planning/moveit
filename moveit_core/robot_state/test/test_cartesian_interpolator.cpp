@@ -229,7 +229,7 @@ protected:
     urdf::ModelInterfaceSharedPtr urdf_model = urdf::parseURDF(MODEL2);
     srdf::ModelSharedPtr srdf_model(new srdf::Model());
     srdf_model->initString(*urdf_model, SMODEL2);
-    robot_model_.reset(new moveit::core::RobotModel(urdf_model, srdf_model));
+    robot_model_ = std::make_shared<moveit::core::RobotModel>(urdf_model, srdf_model);
   }
 
   void TearDown() override
@@ -253,7 +253,6 @@ std::size_t generateTestTraj(std::vector<std::shared_ptr<moveit::core::RobotStat
   // 3 waypoints with default joints
   for (std::size_t traj_ix = 0; traj_ix < 3; ++traj_ix)
   {
-    // robot_state.reset(new moveit::core::RobotState(*robot_state));
     traj.push_back(moveit::core::RobotStatePtr(new moveit::core::RobotState(*robot_state)));
   }
 

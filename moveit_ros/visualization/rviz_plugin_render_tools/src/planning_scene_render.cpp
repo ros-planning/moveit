@@ -48,7 +48,7 @@ PlanningSceneRender::PlanningSceneRender(Ogre::SceneNode* node, rviz::DisplayCon
                                          const RobotStateVisualizationPtr& robot)
   : planning_scene_geometry_node_(node->createChildSceneNode()), context_(context), scene_robot_(robot)
 {
-  render_shapes_.reset(new RenderShapes(context));
+  render_shapes_ = std::make_shared<RenderShapes>(context);
 }
 
 PlanningSceneRender::~PlanningSceneRender()

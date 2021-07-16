@@ -167,14 +167,14 @@ ompl::base::PlannerPtr ompl_interface::MultiQueryPlannerAllocator::allocatePlann
     ROS_INFO("Loading planner data");
     ob::PlannerData data(si);
     storage_.load(file_path.c_str(), data);
-    planner.reset(allocatePersistentPlanner<T>(data));
+    planner = std::shared_ptr<ob::Planner>{ allocatePersistentPlanner<T>(data) };
     if (!planner)
       ROS_ERROR_NAMED(LOGNAME,
                       "Creating a '%s' planner from persistent data is not supported. Going to create a new instance.",
                       new_name.c_str());
   }
   if (!planner)
-    planner.reset(new T(si));
+    planner = std::make_shared<T>(si);
   if (!new_name.empty())
     planner->setName(new_name);
   planner->params().setParams(spec.config_, true);
@@ -234,7 +234,7 @@ ompl_interface::PlanningContextManager::PlanningContextManager(moveit::core::Rob
   , max_solution_segment_length_(0.0)
   , minimum_waypoint_count_(2)
 {
-  cached_contexts_.reset(new CachedContexts());
+  cached_contexts_ = std::make_shared<CachedContexts>();
   registerDefaultPlanners();
   registerDefaultStateSpaces();
 }
@@ -344,10 +344,10 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
     context_spec.state_space_ = factory->getNewStateSpace(space_spec);
 
     // Choose the correct simple setup type to load
-    context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
+    context_spec.ompl_simple_setup_ = std::make_shared<ompl::geometric::SimpleSetup>(context_spec.state_space_);
 
     ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
-    context.reset(new ModelBasedPlanningContext(config.name, context_spec));
+    context = std::make_shared<ModelBasedPlanningContext>(config.name, context_spec);
     {
       std::unique_lock<std::mutex> slock(cached_contexts_->lock_);
       cached_contexts_->contexts_[std::make_pair(config.name, factory->getType())].push_back(context);

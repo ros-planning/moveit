@@ -116,7 +116,7 @@ void IntegrationTestSequenceAction::SetUp()
 
   robot_model_ = model_loader_.getModel();
 
-  data_loader_.reset(new XmlTestdataLoader(test_data_file_name_, robot_model_));
+  data_loader_ = std::make_unique<XmlTestdataLoader>(test_data_file_name_, robot_model_);
   ASSERT_NE(nullptr, data_loader_) << "Failed to load test data by provider.";
 
   // wait for action server

@@ -52,9 +52,9 @@ public:
     {
       try
       {
-        constraint_sampler_plugin_loader_.reset(
-            new pluginlib::ClassLoader<constraint_samplers::ConstraintSamplerAllocator>(
-                "moveit_core", "constraint_samplers::ConstraintSamplerAllocator"));
+        constraint_sampler_plugin_loader_ =
+            std::make_unique<pluginlib::ClassLoader<constraint_samplers::ConstraintSamplerAllocator>>(
+                "moveit_core", "constraint_samplers::ConstraintSamplerAllocator");
       }
       catch (pluginlib::PluginlibException& ex)
       {
@@ -62,8 +62,8 @@ public:
         return;
       }
       boost::char_separator<char> sep(" ");
-      boost::tokenizer<boost::char_separator<char> > tok(constraint_samplers, sep);
-      for (boost::tokenizer<boost::char_separator<char> >::iterator beg = tok.begin(); beg != tok.end(); ++beg)
+      boost::tokenizer<boost::char_separator<char>> tok(constraint_samplers, sep);
+      for (boost::tokenizer<boost::char_separator<char>>::iterator beg = tok.begin(); beg != tok.end(); ++beg)
       {
         try
         {
@@ -82,7 +82,7 @@ public:
 
 private:
   ros::NodeHandle nh_;
-  std::unique_ptr<pluginlib::ClassLoader<constraint_samplers::ConstraintSamplerAllocator> >
+  std::unique_ptr<pluginlib::ClassLoader<constraint_samplers::ConstraintSamplerAllocator>>
       constraint_sampler_plugin_loader_;
 };
 

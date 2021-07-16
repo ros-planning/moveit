@@ -75,8 +75,8 @@ protected:
     robot_model_ = moveit::core::loadTestingRobotModel("panda");
     ASSERT_TRUE(static_cast<bool>(robot_model_));
 
-    robot_state_.reset(new moveit::core::RobotState(robot_model_));
-    planning_scene_.reset(new planning_scene::PlanningScene(robot_model_));
+    robot_state_ = std::make_shared<moveit::core::RobotState>(robot_model_);
+    planning_scene_ = std::make_shared<planning_scene::PlanningScene>(robot_model_);
   }
 
   void TearDown() override

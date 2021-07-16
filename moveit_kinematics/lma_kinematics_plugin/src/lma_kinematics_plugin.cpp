@@ -133,9 +133,9 @@ bool LMAKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
     ROS_INFO_NAMED("lma", "Using position only ik");
 
   // Setup the joint state groups that we need
-  state_.reset(new moveit::core::RobotState(robot_model_));
+  state_ = std::make_shared<moveit::core::RobotState>(robot_model_);
 
-  fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
+  fk_solver_ = std::make_unique<KDL::ChainFkSolverPos_recursive>(kdl_chain_);
 
   initialized_ = true;
   ROS_DEBUG_NAMED("lma", "LMA solver initialized");

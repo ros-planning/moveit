@@ -123,7 +123,7 @@ bool PlanningContextLoader::loadContext(planning_interface::PlanningContextPtr& 
 {
   if (limits_set_ && model_set_)
   {
-    planning_context.reset(new T(name, group, model_, limits_));
+    planning_context = std::make_shared<T>(name, group, model_, limits_);
     return true;
   }
   else

@@ -148,7 +148,7 @@ void TrajectoryVisualization::onInitialize(Ogre::SceneNode* scene_node, rviz::Di
   update_nh_ = update_nh;
 
   // Load trajectory robot
-  display_path_robot_.reset(new RobotStateVisualization(scene_node_, context_, "Planned Path", widget_));
+  display_path_robot_ = std::make_shared<RobotStateVisualization>(scene_node_, context_, "Planned Path", widget_);
   display_path_robot_->setVisualVisible(display_path_visual_enabled_property_->getBool());
   display_path_robot_->setCollisionVisible(display_path_collision_enabled_property_->getBool());
   display_path_robot_->setVisible(false);
@@ -184,7 +184,7 @@ void TrajectoryVisualization::onRobotModelLoaded(const moveit::core::RobotModelC
   }
 
   // Load robot state
-  robot_state_.reset(new moveit::core::RobotState(robot_model_));
+  robot_state_ = std::make_shared<moveit::core::RobotState>(robot_model_);
   robot_state_->setToDefaultValues();
 
   // Load rviz robot
@@ -340,8 +340,8 @@ void TrajectoryVisualization::interruptCurrentDisplay()
 
 float TrajectoryVisualization::getStateDisplayTime()
 {
-  constexpr char DEFAULT_TIME_STRING[] = "3x";
-  constexpr float DEFAULT_TIME_VALUE = -3.0f;
+  constexpr char default_time_string[] = "3x";
+  constexpr float default_time_value = -3.0f;
 
   std::string tm = state_display_time_property_->getStdString();
   boost::trim(tm);
@@ -358,8 +358,8 @@ float TrajectoryVisualization::getStateDisplayTime()
   }
   else
   {
-    state_display_time_property_->setStdString(DEFAULT_TIME_STRING);
-    return DEFAULT_TIME_VALUE;
+    state_display_time_property_->setStdString(default_time_string);
+    return default_time_value;
   }
 
   tm.resize(tm.size() - 1);
@@ -372,14 +372,14 @@ float TrajectoryVisualization::getStateDisplayTime()
   }
   catch (const boost::bad_lexical_cast& ex)
   {
-    state_display_time_property_->setStdString(DEFAULT_TIME_STRING);
-    return DEFAULT_TIME_VALUE;
+    state_display_time_property_->setStdString(default_time_string);
+    return default_time_value;
   }
 
   if (value <= 0)
   {
-    state_display_time_property_->setStdString(DEFAULT_TIME_STRING);
-    return DEFAULT_TIME_VALUE;
+    state_display_time_property_->setStdString(default_time_string);
+    return default_time_value;
   }
 
   return type * value;

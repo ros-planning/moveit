@@ -134,8 +134,9 @@ void clutterWorld(const planning_scene::PlanningScenePtr& planning_scene, const 
       }
       case CollisionObjectType::BOX:
       {
-        shape.reset(new shapes::Box(num_generator.uniformReal(0.05, 0.2), num_generator.uniformReal(0.05, 0.2),
-                                    num_generator.uniformReal(0.05, 0.2)));
+        shape =
+            std::make_shared<shapes::Box>(num_generator.uniformReal(0.05, 0.2), num_generator.uniformReal(0.05, 0.2),
+                                          num_generator.uniformReal(0.05, 0.2));
         name = "box";
         break;
       }

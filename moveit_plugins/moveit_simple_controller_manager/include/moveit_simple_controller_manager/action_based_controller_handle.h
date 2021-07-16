@@ -74,7 +74,7 @@ public:
   ActionBasedControllerHandle(const std::string& name, const std::string& ns)
     : ActionBasedControllerHandleBase(name), nh_("~"), done_(true), namespace_(ns)
   {
-    controller_action_client_.reset(new actionlib::SimpleActionClient<T>(getActionName(), true));
+    controller_action_client_ = std::make_shared<actionlib::SimpleActionClient<T>>(getActionName(), true);
     unsigned int attempts = 0;
     double timeout;
     nh_.param("trajectory_execution/controller_connection_timeout", timeout, 15.0);
@@ -188,7 +188,7 @@ protected:
   std::vector<std::string> joints_;
 
   /* action client */
-  std::shared_ptr<actionlib::SimpleActionClient<T> > controller_action_client_;
+  std::shared_ptr<actionlib::SimpleActionClient<T>> controller_action_client_;
 };
 
 }  // end namespace moveit_simple_controller_manager

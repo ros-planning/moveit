@@ -271,7 +271,7 @@ public:
     }
     else
     {
-      state.reset(new moveit::core::RobotState(robot_model_));
+      state = std::make_shared<moveit::core::RobotState>(robot_model_);
     }
 
     bp::list k = values.keys();

@@ -60,9 +60,9 @@ public:
    * \param iksolver_to_tip_links - a map between each ik solver and a vector of custom-specified tip link(s)
    */
   KinematicsLoaderImpl(const std::string& robot_description,
-                       const std::map<std::string, std::vector<std::string> >& possible_kinematics_solvers,
-                       const std::map<std::string, std::vector<double> >& search_res,
-                       const std::map<std::string, std::vector<std::string> >& iksolver_to_tip_links)
+                       const std::map<std::string, std::vector<std::string>>& possible_kinematics_solvers,
+                       const std::map<std::string, std::vector<double>>& search_res,
+                       const std::map<std::string, std::vector<std::string>>& iksolver_to_tip_links)
     : robot_description_(robot_description)
     , possible_kinematics_solvers_(possible_kinematics_solvers)
     , search_res_(search_res)
@@ -70,8 +70,9 @@ public:
   {
     try
     {
-      kinematics_loader_.reset(new pluginlib::ClassLoader<kinematics::KinematicsBase>("moveit_core", "kinematics::"
-                                                                                                     "KinematicsBase"));
+      kinematics_loader_ =
+          std::make_shared<pluginlib::ClassLoader<kinematics::KinematicsBase>>("moveit_core", "kinematics::"
+                                                                                              "KinematicsBase");
     }
     catch (pluginlib::PluginlibException& e)
     {
@@ -87,8 +88,7 @@ public:
   std::vector<std::string> chooseTipFrames(const moveit::core::JointModelGroup* jmg)
   {
     std::vector<std::string> tips;
-    std::map<std::string, std::vector<std::string> >::const_iterator ik_it =
-        iksolver_to_tip_links_.find(jmg->getName());
+    std::map<std::string, std::vector<std::string>>::const_iterator ik_it = iksolver_to_tip_links_.find(jmg->getName());
 
     // Check if tips were loaded onto the rosparam server previously
     if (ik_it != iksolver_to_tip_links_.end())
@@ -147,7 +147,7 @@ public:
 
     ROS_DEBUG_NAMED(LOGNAME, "Trying to allocate kinematics solver for group '%s'", jmg->getName().c_str());
 
-    std::map<std::string, std::vector<std::string> >::const_iterator it =
+    std::map<std::string, std::vector<std::string>>::const_iterator it =
         possible_kinematics_solvers_.find(jmg->getName());
     if (it == possible_kinematics_solvers_.end())
     {
@@ -225,7 +225,7 @@ public:
 
   void status() const
   {
-    for (std::map<std::string, std::vector<std::string> >::const_iterator it = possible_kinematics_solvers_.begin();
+    for (std::map<std::string, std::vector<std::string>>::const_iterator it = possible_kinematics_solvers_.begin();
          it != possible_kinematics_solvers_.end(); ++it)
       for (std::size_t i = 0; i < it->second.size(); ++i)
         ROS_INFO_NAMED(LOGNAME, "Solver for group '%s': '%s' (search resolution = %lf)", it->first.c_str(),
@@ -234,11 +234,11 @@ public:
 
 private:
   std::string robot_description_;
-  std::map<std::string, std::vector<std::string> > possible_kinematics_solvers_;
-  std::map<std::string, std::vector<double> > search_res_;
-  std::map<std::string, std::vector<std::string> > iksolver_to_tip_links_;  // a map between each ik solver and a vector
-                                                                            // of custom-specified tip link(s)
-  std::shared_ptr<pluginlib::ClassLoader<kinematics::KinematicsBase> > kinematics_loader_;
+  std::map<std::string, std::vector<std::string>> possible_kinematics_solvers_;
+  std::map<std::string, std::vector<double>> search_res_;
+  std::map<std::string, std::vector<std::string>> iksolver_to_tip_links_;  // a map between each ik solver and a vector
+                                                                           // of custom-specified tip link(s)
+  std::shared_ptr<pluginlib::ClassLoader<kinematics::KinematicsBase>> kinematics_loader_;
   std::map<const moveit::core::JointModelGroup*, kinematics::KinematicsBasePtr> instances_;
   boost::mutex lock_;
   boost::mutex cache_lock_;
@@ -275,9 +275,9 @@ moveit::core::SolverAllocatorFn KinematicsPluginLoader::getLoaderFunction(const 
     ROS_DEBUG_NAMED(LOGNAME, "Configuring kinematics solvers");
     groups_.clear();
 
-    std::map<std::string, std::vector<std::string> > possible_kinematics_solvers;
-    std::map<std::string, std::vector<double> > search_res;
-    std::map<std::string, std::vector<std::string> > iksolver_to_tip_links;
+    std::map<std::string, std::vector<std::string>> possible_kinematics_solvers;
+    std::map<std::string, std::vector<double>> search_res;
+    std::map<std::string, std::vector<std::string>> iksolver_to_tip_links;
 
     if (srdf_model)
     {
@@ -443,8 +443,8 @@ moveit::core::SolverAllocatorFn KinematicsPluginLoader::getLoaderFunction(const 
       }
     }
 
-    loader_.reset(
-        new KinematicsLoaderImpl(robot_description_, possible_kinematics_solvers, search_res, iksolver_to_tip_links));
+    loader_ = std::make_shared<KinematicsLoaderImpl>(robot_description_, possible_kinematics_solvers, search_res,
+                                                     iksolver_to_tip_links);
   }
 
   return boost::bind(&KinematicsPluginLoader::KinematicsLoaderImpl::allocKinematicsSolverWithCache, loader_.get(), _1);

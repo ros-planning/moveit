@@ -376,7 +376,7 @@ bool IKFastKinematicsPlugin::computeRelativeTransform(const std::string& from, c
                                                       Eigen::Isometry3d& transform, bool& differs_from_identity)
 {
   RobotStatePtr robot_state;
-  robot_state.reset(new RobotState(robot_model_));
+  robot_state = std::make_shared<RobotState>(robot_model_);
   robot_state->setToDefaultValues();
 
   bool has_link;  // to suppress ROS_ERRORs for non-existent frames

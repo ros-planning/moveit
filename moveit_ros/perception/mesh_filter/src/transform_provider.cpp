@@ -42,8 +42,8 @@
 TransformProvider::TransformProvider(double update_rate) : stop_(true), update_rate_(update_rate)
 {
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>();
-  tf_listener_.reset(new tf2_ros::TransformListener(*tf_buffer_));
-  psm_.reset(new planning_scene_monitor::PlanningSceneMonitor("robot_description", tf_buffer_));
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+  psm_ = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description", tf_buffer_);
   psm_->startStateMonitor();
 }
 
@@ -69,7 +69,7 @@ void TransformProvider::addHandle(mesh_filter::MeshHandle handle, const std::str
   if (!stop_)
     throw std::runtime_error("Can not add handles if TransformProvider is running");
 
-  handle2context_[handle].reset(new TransformContext(name));
+  handle2context_[handle] = std::make_shared<TransformContext>(name);
 }
 
 void TransformProvider::setFrame(const std::string& frame)

@@ -901,7 +901,7 @@ shapes::Mesh* VisibilityConstraint::getVisibilityCone(const moveit::core::RobotS
   std::unique_ptr<EigenSTL::vector_Vector3d> temp_points;
   if (mobile_target_frame_)
   {
-    temp_points.reset(new EigenSTL::vector_Vector3d(points_.size()));
+    temp_points = std::make_unique<EigenSTL::vector_Vector3d>(points_.size());
     for (std::size_t i = 0; i < points_.size(); ++i)
       temp_points->at(i) = tp * points_[i];
     points = temp_points.get();

@@ -58,7 +58,7 @@ public:
   {
     // Load planning scene
     if (!psm_)
-      psm_.reset(new planning_scene_monitor::PlanningSceneMonitor("robot_description"));
+      psm_ = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
     if (!psm_->newPlanningSceneMessage(scene_msg))
     {
       ROS_ERROR_NAMED(LOGNAME, "Failed to load planning scene");

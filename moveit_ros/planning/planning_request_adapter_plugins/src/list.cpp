@@ -46,8 +46,8 @@ int main(int argc, char** argv)
   std::unique_ptr<pluginlib::ClassLoader<planning_request_adapter::PlanningRequestAdapter>> loader;
   try
   {
-    loader.reset(new pluginlib::ClassLoader<planning_request_adapter::PlanningRequestAdapter>(
-        "moveit_core", "planning_request_adapter::PlanningRequestAdapter"));
+    loader = std::make_unique<pluginlib::ClassLoader<planning_request_adapter::PlanningRequestAdapter>>(
+        "moveit_core", "planning_request_adapter::PlanningRequestAdapter");
   }
   catch (pluginlib::PluginlibException& ex)
   {

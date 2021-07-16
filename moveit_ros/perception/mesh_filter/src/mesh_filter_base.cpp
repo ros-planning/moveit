@@ -75,12 +75,12 @@ void mesh_filter::MeshFilterBase::initialize(const std::string& render_vertex_sh
                                              const std::string& filter_vertex_shader,
                                              const std::string& filter_fragment_shader)
 {
-  mesh_renderer_.reset(new GLRenderer(sensor_parameters_->getWidth(), sensor_parameters_->getHeight(),
-                                      sensor_parameters_->getNearClippingPlaneDistance(),
-                                      sensor_parameters_->getFarClippingPlaneDistance()));
-  depth_filter_.reset(new GLRenderer(sensor_parameters_->getWidth(), sensor_parameters_->getHeight(),
-                                     sensor_parameters_->getNearClippingPlaneDistance(),
-                                     sensor_parameters_->getFarClippingPlaneDistance()));
+  mesh_renderer_ = std::make_shared<GLRenderer>(sensor_parameters_->getWidth(), sensor_parameters_->getHeight(),
+                                                sensor_parameters_->getNearClippingPlaneDistance(),
+                                                sensor_parameters_->getFarClippingPlaneDistance());
+  depth_filter_ = std::make_shared<GLRenderer>(sensor_parameters_->getWidth(), sensor_parameters_->getHeight(),
+                                               sensor_parameters_->getNearClippingPlaneDistance(),
+                                               sensor_parameters_->getFarClippingPlaneDistance());
 
   mesh_renderer_->setShadersFromString(render_vertex_shader, render_fragment_shader);
   depth_filter_->setShadersFromString(filter_vertex_shader, filter_fragment_shader);

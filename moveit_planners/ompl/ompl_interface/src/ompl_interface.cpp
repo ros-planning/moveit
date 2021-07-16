@@ -123,8 +123,8 @@ void ompl_interface::OMPLInterface::configureContext(const ModelBasedPlanningCon
 
 void ompl_interface::OMPLInterface::loadConstraintSamplers()
 {
-  constraint_sampler_manager_loader_.reset(
-      new constraint_sampler_manager_loader::ConstraintSamplerManagerLoader(constraint_sampler_manager_));
+  constraint_sampler_manager_loader_ =
+      std::make_shared<constraint_sampler_manager_loader::ConstraintSamplerManagerLoader>(constraint_sampler_manager_);
 }
 
 bool ompl_interface::OMPLInterface::loadPlannerConfiguration(

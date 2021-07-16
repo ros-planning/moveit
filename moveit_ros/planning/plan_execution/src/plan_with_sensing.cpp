@@ -88,8 +88,8 @@ plan_execution::PlanWithSensing::PlanWithSensing(
   {
     try
     {
-      sensor_manager_loader_.reset(new pluginlib::ClassLoader<moveit_sensor_manager::MoveItSensorManager>(
-          "moveit_core", "moveit_sensor_manager::MoveItSensorManager"));
+      sensor_manager_loader_ = std::make_unique<pluginlib::ClassLoader<moveit_sensor_manager::MoveItSensorManager>>(
+          "moveit_core", "moveit_sensor_manager::MoveItSensorManager");
     }
     catch (pluginlib::PluginlibException& ex)
     {

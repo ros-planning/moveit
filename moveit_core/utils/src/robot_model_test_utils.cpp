@@ -385,7 +385,7 @@ moveit::core::RobotModelPtr RobotModelBuilder::build()
     return robot_model;
   }
   srdf_writer_->updateSRDFModel(*urdf_model_);
-  robot_model.reset(new moveit::core::RobotModel(urdf_model_, srdf_writer_->srdf_model_));
+  robot_model = std::make_shared<moveit::core::RobotModel>(urdf_model_, srdf_writer_->srdf_model_);
   return robot_model;
 }
 }  // namespace core

@@ -152,7 +152,7 @@ bool MotionPlanningFrame::computeCartesianPlan()
     ROS_INFO("Computing time stamps %s", success ? "SUCCEDED" : "FAILED");
 
     // Store trajectory in current_plan_
-    current_plan_.reset(new moveit::planning_interface::MoveGroupInterface::Plan());
+    current_plan_ = std::make_shared<moveit::planning_interface::MoveGroupInterface::Plan>();
     rt.getRobotTrajectoryMsg(current_plan_->trajectory_);
     current_plan_->planning_time_ = (ros::WallTime::now() - start).toSec();
     return success;
@@ -162,7 +162,7 @@ bool MotionPlanningFrame::computeCartesianPlan()
 
 bool MotionPlanningFrame::computeJointSpacePlan()
 {
-  current_plan_.reset(new moveit::planning_interface::MoveGroupInterface::Plan());
+  current_plan_ = std::make_shared<moveit::planning_interface::MoveGroupInterface::Plan>();
   return move_group_->plan(*current_plan_) == moveit::planning_interface::MoveItErrorCode::SUCCESS;
 }
 

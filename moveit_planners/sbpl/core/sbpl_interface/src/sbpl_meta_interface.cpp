@@ -40,8 +40,8 @@ namespace sbpl_interface
 {
 SBPLMetaInterface::SBPLMetaInterface(const planning_models::RobotModelConstPtr& robot_model)
 {
-  sbpl_interface_first_.reset(new sbpl_interface::SBPLInterface(robot_model));
-  sbpl_interface_second_.reset(new sbpl_interface::SBPLInterface(robot_model));
+  sbpl_interface_first_ = std::make_shared<sbpl_interface::SBPLInterface>(robot_model);
+  sbpl_interface_second_ = std::make_shared<sbpl_interface::SBPLInterface>(robot_model);
 }
 
 bool SBPLMetaInterface::solve(const planning_scene::PlanningSceneConstPtr& planning_scene,

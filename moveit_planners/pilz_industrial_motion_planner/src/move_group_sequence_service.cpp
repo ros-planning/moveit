@@ -54,8 +54,8 @@ MoveGroupSequenceService::~MoveGroupSequenceService()
 
 void MoveGroupSequenceService::initialize()
 {
-  command_list_manager_.reset(new pilz_industrial_motion_planner::CommandListManager(
-      ros::NodeHandle("~"), context_->planning_scene_monitor_->getRobotModel()));
+  command_list_manager_ = std::make_unique<pilz_industrial_motion_planner::CommandListManager>(
+      ros::NodeHandle("~"), context_->planning_scene_monitor_->getRobotModel());
 
   sequence_service_ = root_node_handle_.advertiseService(SEQUENCE_SERVICE_NAME, &MoveGroupSequenceService::plan, this);
 }

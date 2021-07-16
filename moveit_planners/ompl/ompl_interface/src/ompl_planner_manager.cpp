@@ -100,7 +100,7 @@ public:
       }
     };
 
-    output_handler_.reset(new OutputHandler());
+    output_handler_ = std::make_shared<OutputHandler>();
     ompl::msg::useOutputHandler(output_handler_.get());
   }
 
@@ -108,10 +108,10 @@ public:
   {
     if (!ns.empty())
       nh_ = ros::NodeHandle(ns);
-    ompl_interface_.reset(new OMPLInterface(model, nh_));
+    ompl_interface_ = std::make_unique<OMPLInterface>(model, nh_);
     std::string ompl_ns = ns.empty() ? "ompl" : ns + "/ompl";
-    dynamic_reconfigure_server_.reset(
-        new dynamic_reconfigure::Server<OMPLDynamicReconfigureConfig>(ros::NodeHandle(nh_, ompl_ns)));
+    dynamic_reconfigure_server_ =
+        std::make_unique<dynamic_reconfigure::Server<OMPLDynamicReconfigureConfig>>(ros::NodeHandle(nh_, ompl_ns));
     dynamic_reconfigure_server_->setCallback(
         std::bind(&OMPLPlannerManager::dynamicReconfigureCallback, this, std::placeholders::_1, std::placeholders::_2));
     config_settings_ = ompl_interface_->getPlannerConfigurations();

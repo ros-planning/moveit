@@ -76,8 +76,9 @@ PropagationDistanceField::PropagationDistanceField(std::istream& is, double max_
 void PropagationDistanceField::initialize()
 {
   max_distance_sq_ = ceil(max_distance_ / resolution_) * ceil(max_distance_ / resolution_);
-  voxel_grid_.reset(new VoxelGrid<PropDistanceFieldVoxel>(size_x_, size_y_, size_z_, resolution_, origin_x_, origin_y_,
-                                                          origin_z_, PropDistanceFieldVoxel(max_distance_sq_, 0)));
+  voxel_grid_ =
+      std::make_shared<VoxelGrid<PropDistanceFieldVoxel>>(size_x_, size_y_, size_z_, resolution_, origin_x_, origin_y_,
+                                                          origin_z_, PropDistanceFieldVoxel(max_distance_sq_, 0));
 
   initNeighborhoods();
 

@@ -46,21 +46,21 @@ move_group::MoveGroupPickPlaceAction::MoveGroupPickPlaceAction()
 
 void move_group::MoveGroupPickPlaceAction::initialize()
 {
-  pick_place_.reset(new pick_place::PickPlace(context_->planning_pipeline_));
+  pick_place_ = std::make_shared<pick_place::PickPlace>(context_->planning_pipeline_);
   pick_place_->displayComputedMotionPlans(true);
 
   if (context_->debug_)
     pick_place_->displayProcessedGrasps(true);
 
   // start the pickup action server
-  pickup_action_server_.reset(new actionlib::SimpleActionServer<moveit_msgs::PickupAction>(
-      root_node_handle_, PICKUP_ACTION, boost::bind(&MoveGroupPickPlaceAction::executePickupCallback, this, _1), false));
+  pickup_action_server_ = std::make_unique<actionlib::SimpleActionServer<moveit_msgs::PickupAction>>(
+      root_node_handle_, PICKUP_ACTION, boost::bind(&MoveGroupPickPlaceAction::executePickupCallback, this, _1), false);
   pickup_action_server_->registerPreemptCallback(boost::bind(&MoveGroupPickPlaceAction::preemptPickupCallback, this));
   pickup_action_server_->start();
 
   // start the place action server
-  place_action_server_.reset(new actionlib::SimpleActionServer<moveit_msgs::PlaceAction>(
-      root_node_handle_, PLACE_ACTION, boost::bind(&MoveGroupPickPlaceAction::executePlaceCallback, this, _1), false));
+  place_action_server_ = std::make_unique<actionlib::SimpleActionServer<moveit_msgs::PlaceAction>>(
+      root_node_handle_, PLACE_ACTION, boost::bind(&MoveGroupPickPlaceAction::executePlaceCallback, this, _1), false);
   place_action_server_->registerPreemptCallback(boost::bind(&MoveGroupPickPlaceAction::preemptPlaceCallback, this));
   place_action_server_->start();
 }

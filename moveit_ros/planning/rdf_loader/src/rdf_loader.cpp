@@ -103,21 +103,20 @@ rdf_loader::RDFLoader::RDFLoader(const std::string& urdf_string, const std::stri
   moveit::tools::Profiler::ScopedStart prof_start;
   moveit::tools::Profiler::ScopedBlock prof_block("RDFLoader(string)");
 
-  urdf::Model* umodel = new urdf::Model();
-  urdf_.reset(umodel);
+  auto umodel = std::make_unique<urdf::Model>();
   if (umodel->initString(urdf_string))
   {
-    srdf_.reset(new srdf::Model());
+    srdf_ = std::make_shared<srdf::Model>();
     if (!srdf_->initString(*urdf_, srdf_string))
     {
       ROS_ERROR_NAMED("rdf_loader", "Unable to parse SRDF");
       srdf_.reset();
     }
+    urdf_ = std::move(umodel);
   }
   else
   {
     ROS_ERROR_NAMED("rdf_loader", "Unable to parse URDF");
-    urdf_.reset();
   }
 }
 

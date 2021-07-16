@@ -51,7 +51,7 @@ public:
   {
     ros::NodeHandle nh;
     // display_bfs_publisher_ = nh.advertise<visualization_msgs::Marker>("planning_components_visualization", 10, true);
-    sbpl_meta_interface_.reset(new sbpl_interface::SBPLMetaInterface(model));
+    sbpl_meta_interface_ = std::make_shared<sbpl_interface::SBPLMetaInterface>(model);
   }
 
   bool canServiceRequest(const moveit_msgs::GetMotionPlan::Request& req,

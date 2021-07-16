@@ -53,8 +53,9 @@ bool KinematicsCacheROS::init(const kinematics_cache::KinematicsCache::Options& 
                               const std::string& kinematics_solver_name, const std::string& group_name,
                               const std::string& base_frame, const std::string& tip_frame, double search_discretization)
 {
-  kinematics_loader_.reset(new pluginlib::ClassLoader<kinematics::KinematicsBase>("kinematics_base", "kinematics::"
-                                                                                                     "KinematicsBase"));
+  kinematics_loader_ =
+      std::make_shared<pluginlib::ClassLoader<kinematics::KinematicsBase>>("kinematics_base", "kinematics::"
+                                                                                              "KinematicsBase");
 
   try
   {
@@ -75,7 +76,7 @@ bool KinematicsCacheROS::init(const kinematics_cache::KinematicsCache::Options& 
   rdf_loader::RDFLoader rdf_loader;
   const srdf::ModelSharedPtr& srdf = rdf_loader.getSRDF();
   const urdf::ModelInterfaceSharedPtr& urdf_model = rdf_loader.getURDF();
-  kinematic_model_.reset(new planning_models::RobotModel(urdf_model, srdf));
+  kinematic_model_ = std::make_shared<planning_models::RobotModel>(urdf_model, srdf);
 
   if (!initialize((kinematics::KinematicsBaseConstPtr&)kinematics_solver_,
                   (planning_models::RobotModelConstPtr&)kinematic_model_, opt))

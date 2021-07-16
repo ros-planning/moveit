@@ -257,9 +257,9 @@ bool KDLKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   }
 
   // Setup the joint state groups that we need
-  state_.reset(new moveit::core::RobotState(robot_model_));
+  state_ = std::make_shared<moveit::core::RobotState>(robot_model_);
 
-  fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
+  fk_solver_ = std::make_unique<KDL::ChainFkSolverPos_recursive>(kdl_chain_);
 
   initialized_ = true;
   ROS_DEBUG_NAMED("kdl", "KDL solver initialized");

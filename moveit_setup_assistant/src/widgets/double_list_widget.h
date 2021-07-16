@@ -120,7 +120,7 @@ Q_SIGNALS:
   void cancelEditing();
 
   /// Signal to highlight parts of robot
-  void previewSelected(std::vector<std::string>);
+  void previewSelected(std::vector<std::string> /*_t1*/);
 
   /// When the set of selected items has changed
   void selectionUpdated();

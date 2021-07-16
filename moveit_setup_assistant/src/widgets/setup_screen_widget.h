@@ -66,7 +66,7 @@ Q_SIGNALS:
   void isModal(bool isModal);
 
   /// Event for telling rviz to highlight a link of the robot
-  void highlightLink(const std::string& name, const QColor&);
+  void highlightLink(const std::string& name, const QColor& /*_t2*/);
 
   /// Event for telling rviz to highlight a group of the robot
   void highlightGroup(const std::string& name);

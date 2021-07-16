@@ -69,7 +69,7 @@ void robot_interaction::LockedRobotState::setState(const moveit::core::RobotStat
     if (state_.unique())
       *state_ = state;
     else
-      state_.reset(new moveit::core::RobotState(state));
+      state_ = std::make_shared<moveit::core::RobotState>(state);
 
     state_->update();
   }
@@ -84,7 +84,7 @@ void robot_interaction::LockedRobotState::modifyState(const ModifyStateFunction&
     // If someone else has a reference to the state, then make a copy.
     // The old state is orphaned (does not change, but is now out of date).
     if (!state_.unique())
-      state_.reset(new moveit::core::RobotState(*state_));
+      state_ = std::make_shared<moveit::core::RobotState>(*state_);
 
     modify(state_.get());
     state_->update();

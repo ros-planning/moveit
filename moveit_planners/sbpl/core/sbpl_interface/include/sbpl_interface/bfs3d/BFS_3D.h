@@ -55,7 +55,7 @@ private:
   int* queue;
   int queue_head, queue_tail;
 
-  boost::shared_ptr<boost::thread> search_thread_;
+  std::shared_ptr<boost::thread> search_thread_;
 
   volatile bool running;
 

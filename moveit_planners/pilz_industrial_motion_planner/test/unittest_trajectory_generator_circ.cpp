@@ -119,7 +119,7 @@ void TrajectoryGeneratorCIRCTest::SetUp()
   testutils::checkRobotModel(robot_model_, planning_group_, target_link_);
 
   // load the test data provider
-  tdp_.reset(new pilz_industrial_motion_planner_testutils::XmlTestdataLoader{ test_data_file_name_ });
+  tdp_ = std::make_unique<pilz_industrial_motion_planner_testutils::XmlTestdataLoader>(test_data_file_name_);
   ASSERT_NE(nullptr, tdp_) << "Failed to load test data by provider.";
 
   tdp_->setRobotModel(robot_model_);
@@ -140,7 +140,7 @@ void TrajectoryGeneratorCIRCTest::SetUp()
   planner_limits_.setCartesianLimits(cart_limits);
 
   // initialize the LIN trajectory generator
-  circ_.reset(new TrajectoryGeneratorCIRC(robot_model_, planner_limits_));
+  circ_ = std::make_unique<TrajectoryGeneratorCIRC>(robot_model_, planner_limits_);
   ASSERT_NE(nullptr, circ_) << "failed to create CIRC trajectory generator";
 }
 

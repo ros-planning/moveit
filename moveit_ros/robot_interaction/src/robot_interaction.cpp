@@ -70,7 +70,7 @@ RobotInteraction::RobotInteraction(const moveit::core::RobotModelConstPtr& robot
 
   // spin a thread that will process feedback events
   run_processing_thread_ = true;
-  processing_thread_.reset(new boost::thread(boost::bind(&RobotInteraction::processingThread, this)));
+  processing_thread_ = std::make_unique<boost::thread>(boost::bind(&RobotInteraction::processingThread, this));
 }
 
 RobotInteraction::~RobotInteraction()

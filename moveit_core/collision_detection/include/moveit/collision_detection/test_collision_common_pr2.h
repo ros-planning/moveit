@@ -62,12 +62,12 @@ protected:
 
   void SetUp() override
   {
-    value_.reset(new CollisionAllocatorType);
+    value_ = std::make_shared<CollisionAllocatorType>();
     robot_model_ = moveit::core::loadTestingRobotModel("pr2");
     robot_model_ok_ = static_cast<bool>(robot_model_);
     kinect_dae_resource_ = "package://moveit_resources_pr2_description/urdf/meshes/sensors/kinect_v0/kinect.dae";
 
-    acm_.reset(new collision_detection::AllowedCollisionMatrix(robot_model_->getLinkModelNames(), true));
+    acm_ = std::make_shared<collision_detection::AllowedCollisionMatrix>(robot_model_->getLinkModelNames(), true);
 
     cenv_ = value_->allocateEnv(robot_model_);
   }
@@ -195,7 +195,8 @@ TYPED_TEST_P(CollisionDetectorTest, ContactReporting)
 
   req.max_contacts = 10;
   req.max_contacts_per_pair = 2;
-  this->acm_.reset(new collision_detection::AllowedCollisionMatrix(this->robot_model_->getLinkModelNames(), false));
+  this->acm_ =
+      std::make_shared<collision_detection::AllowedCollisionMatrix>(this->robot_model_->getLinkModelNames(), false);
   this->cenv_->checkSelfCollision(req, res, robot_state, *this->acm_);
   ASSERT_TRUE(res.collision);
   EXPECT_LE(res.contacts.size(), 10u);
@@ -278,7 +279,8 @@ TYPED_TEST_P(CollisionDetectorTest, AttachedBodyTester)
   collision_detection::CollisionRequest req;
   collision_detection::CollisionResult res;
 
-  this->acm_.reset(new collision_detection::AllowedCollisionMatrix(this->robot_model_->getLinkModelNames(), true));
+  this->acm_ =
+      std::make_shared<collision_detection::AllowedCollisionMatrix>(this->robot_model_->getLinkModelNames(), true);
 
   moveit::core::RobotState robot_state(this->robot_model_);
   robot_state.setToDefaultValues();
@@ -320,7 +322,7 @@ TYPED_TEST_P(CollisionDetectorTest, AttachedBodyTester)
 
   touch_links.push_back("r_gripper_palm_link");
   touch_links.push_back("r_gripper_motor_accelerometer_link");
-  shapes[0].reset(new shapes::Box(.1, .1, .1));
+  shapes[0] = std::make_shared<shapes::Box>(.1, .1, .1);
   robot_state.attachBody("box", shapes, poses, touch_links, "r_gripper_palm_link");
   robot_state.update();
 

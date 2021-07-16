@@ -100,9 +100,7 @@ CollisionEnvFCL::CollisionEnvFCL(const moveit::core::RobotModelConstPtr& model, 
         ROS_ERROR_NAMED(LOGNAME, "Unable to construct collision geometry for link '%s'", link->getName().c_str());
     }
 
-  auto m = new fcl::DynamicAABBTreeCollisionManagerd();
-  // m->tree_init_level = 2;
-  manager_.reset(m);
+  manager_ = std::make_unique<fcl::DynamicAABBTreeCollisionManagerd>();
 
   // request notifications about changes to new world
   observer_handle_ = getWorld()->addObserver(boost::bind(&CollisionEnvFCL::notifyObjectChange, this, _1, _2));
@@ -137,9 +135,7 @@ CollisionEnvFCL::CollisionEnvFCL(const moveit::core::RobotModelConstPtr& model, 
         ROS_ERROR_NAMED(LOGNAME, "Unable to construct collision geometry for link '%s'", link->getName().c_str());
     }
 
-  auto m = new fcl::DynamicAABBTreeCollisionManagerd();
-  // m->tree_init_level = 2;
-  manager_.reset(m);
+  manager_ = std::make_unique<fcl::DynamicAABBTreeCollisionManagerd>();
 
   // request notifications about changes to new world
   observer_handle_ = getWorld()->addObserver(boost::bind(&CollisionEnvFCL::notifyObjectChange, this, _1, _2));
@@ -156,9 +152,7 @@ CollisionEnvFCL::CollisionEnvFCL(const CollisionEnvFCL& other, const WorldPtr& w
   robot_geoms_ = other.robot_geoms_;
   robot_fcl_objs_ = other.robot_fcl_objs_;
 
-  auto m = new fcl::DynamicAABBTreeCollisionManagerd();
-  // m->tree_init_level = 2;
-  manager_.reset(m);
+  manager_ = std::make_unique<fcl::DynamicAABBTreeCollisionManagerd>();
 
   fcl_objs_ = other.fcl_objs_;
   for (auto& fcl_obj : fcl_objs_)
@@ -238,12 +232,10 @@ void CollisionEnvFCL::constructFCLObjectRobot(const moveit::core::RobotState& st
 
 void CollisionEnvFCL::allocSelfCollisionBroadPhase(const moveit::core::RobotState& state, FCLManager& manager) const
 {
-  auto m = new fcl::DynamicAABBTreeCollisionManagerd();
-  // m->tree_init_level = 2;
-  manager.manager_.reset(m);
+  manager.manager_ = std::make_unique<fcl::DynamicAABBTreeCollisionManagerd>();
+
   constructFCLObjectRobot(state, manager.object_);
   manager.object_.registerTo(manager.manager_.get());
-  // manager.manager_->update();
 }
 
 void CollisionEnvFCL::checkSelfCollision(const CollisionRequest& req, CollisionResult& res,

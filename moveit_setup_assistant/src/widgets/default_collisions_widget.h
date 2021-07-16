@@ -252,7 +252,7 @@ public:
   }
 
 Q_SIGNALS:
-  void progress(int);
+  void progress(int /*_t1*/);
 
 private:
   boost::thread worker_;

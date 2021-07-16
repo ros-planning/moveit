@@ -185,7 +185,7 @@ ompl_interface::PoseModelStateSpace::PoseComponent::PoseComponent(
     const moveit::core::JointModelGroup* subgroup, const moveit::core::JointModelGroup::KinematicsSolver& k)
   : subgroup_(subgroup), kinematics_solver_(k.allocator_(subgroup)), bijection_(k.bijection_)
 {
-  state_space_.reset(new ompl::base::SE3StateSpace());
+  state_space_ = std::make_shared<ompl::base::SE3StateSpace>();
   state_space_->setName(subgroup_->getName() + "_Workspace");
   fk_link_.resize(1, kinematics_solver_->getTipFrame());
   if (!fk_link_[0].empty() && fk_link_[0][0] == '/')

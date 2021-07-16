@@ -90,14 +90,14 @@ void RobotModelLoader::configure(const Options& opt)
 
   ros::WallTime start = ros::WallTime::now();
   if (!opt.urdf_string_.empty() && !opt.srdf_string_.empty())
-    rdf_loader_.reset(new rdf_loader::RDFLoader(opt.urdf_string_, opt.srdf_string_));
+    rdf_loader_ = std::make_shared<rdf_loader::RDFLoader>(opt.urdf_string_, opt.srdf_string_);
   else
-    rdf_loader_.reset(new rdf_loader::RDFLoader(opt.robot_description_));
+    rdf_loader_ = std::make_shared<rdf_loader::RDFLoader>(opt.robot_description_);
   if (rdf_loader_->getURDF())
   {
     const srdf::ModelSharedPtr& srdf =
         rdf_loader_->getSRDF() ? rdf_loader_->getSRDF() : srdf::ModelSharedPtr(new srdf::Model());
-    model_.reset(new moveit::core::RobotModel(rdf_loader_->getURDF(), srdf));
+    model_ = std::make_shared<moveit::core::RobotModel>(rdf_loader_->getURDF(), srdf);
   }
 
   if (model_ && !rdf_loader_->getRobotDescription().empty())
@@ -175,7 +175,8 @@ void RobotModelLoader::loadKinematicsSolvers(const kinematics_plugin_loader::Kin
     if (kloader)
       kinematics_loader_ = kloader;
     else
-      kinematics_loader_.reset(new kinematics_plugin_loader::KinematicsPluginLoader(rdf_loader_->getRobotDescription()));
+      kinematics_loader_ =
+          std::make_shared<kinematics_plugin_loader::KinematicsPluginLoader>(rdf_loader_->getRobotDescription());
     moveit::core::SolverAllocatorFn kinematics_allocator =
         kinematics_loader_->getLoaderFunction(rdf_loader_->getSRDF());
     const std::vector<std::string>& groups = kinematics_loader_->getKnownGroups();

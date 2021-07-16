@@ -55,7 +55,7 @@ void MotionPlanningFrame::detectObjectsButtonClicked()
     const planning_scene_monitor::LockedPlanningSceneRO& ps = planning_display_->getPlanningSceneRO();
     if (ps)
     {
-      semantic_world_.reset(new moveit::semantic_world::SemanticWorld(ps));
+      semantic_world_ = std::make_shared<moveit::semantic_world::SemanticWorld>(ps);
     }
     if (semantic_world_)
     {
@@ -141,9 +141,9 @@ void MotionPlanningFrame::triggerObjectDetection()
 {
   if (!object_recognition_client_)
   {
-    object_recognition_client_.reset(
-        new actionlib::SimpleActionClient<object_recognition_msgs::ObjectRecognitionAction>(OBJECT_RECOGNITION_ACTION,
-                                                                                            false));
+    object_recognition_client_ =
+        std::make_unique<actionlib::SimpleActionClient<object_recognition_msgs::ObjectRecognitionAction>>(
+            OBJECT_RECOGNITION_ACTION, false);
     try
     {
       waitForAction(object_recognition_client_, nh_, ros::Duration(3.0), OBJECT_RECOGNITION_ACTION);

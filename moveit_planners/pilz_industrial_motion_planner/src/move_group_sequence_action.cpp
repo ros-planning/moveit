@@ -61,14 +61,14 @@ void MoveGroupSequenceAction::initialize()
 {
   // start the move action server
   ROS_INFO_STREAM("initialize move group sequence action");
-  move_action_server_.reset(new actionlib::SimpleActionServer<moveit_msgs::MoveGroupSequenceAction>(
+  move_action_server_ = std::make_unique<actionlib::SimpleActionServer<moveit_msgs::MoveGroupSequenceAction>>(
       root_node_handle_, "sequence_move_group",
-      boost::bind(&MoveGroupSequenceAction::executeSequenceCallback, this, _1), false));
+      boost::bind(&MoveGroupSequenceAction::executeSequenceCallback, this, _1), false);
   move_action_server_->registerPreemptCallback(boost::bind(&MoveGroupSequenceAction::preemptMoveCallback, this));
   move_action_server_->start();
 
-  command_list_manager_.reset(new pilz_industrial_motion_planner::CommandListManager(
-      ros::NodeHandle("~"), context_->planning_scene_monitor_->getRobotModel()));
+  command_list_manager_ = std::make_unique<pilz_industrial_motion_planner::CommandListManager>(
+      ros::NodeHandle("~"), context_->planning_scene_monitor_->getRobotModel());
 }
 
 void MoveGroupSequenceAction::executeSequenceCallback(const moveit_msgs::MoveGroupSequenceGoalConstPtr& goal)

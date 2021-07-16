@@ -92,7 +92,8 @@ void PickPlacePlanBase::waitForPipeline(const ros::WallTime& endtime)
 PickPlace::PickPlace(const planning_pipeline::PlanningPipelinePtr& planning_pipeline)
   : nh_("~"), planning_pipeline_(planning_pipeline), display_computed_motion_plans_(false), display_grasps_(false)
 {
-  constraint_sampler_manager_loader_.reset(new constraint_sampler_manager_loader::ConstraintSamplerManagerLoader());
+  constraint_sampler_manager_loader_ =
+      std::make_shared<constraint_sampler_manager_loader::ConstraintSamplerManagerLoader>();
 }
 
 void PickPlace::displayProcessedGrasps(bool flag)

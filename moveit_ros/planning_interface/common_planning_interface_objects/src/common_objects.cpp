@@ -148,7 +148,7 @@ CurrentStateMonitorPtr getSharedStateMonitor(const moveit::core::RobotModelConst
   if (!monitor)
   {
     // if there was no valid entry, create one
-    monitor.reset(new CurrentStateMonitor(robot_model, tf_buffer, nh));
+    monitor = std::make_shared<CurrentStateMonitor>(robot_model, tf_buffer, nh);
     it->second = monitor;
   }
   return monitor;

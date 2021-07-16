@@ -107,11 +107,11 @@ public:
         const std::string& type =
             controller_list[i].hasMember("type") ? std::string(controller_list[i]["type"]) : DEFAULT_TYPE;
         if (type == "last point")
-          controllers_[name].reset(new LastPointController(name, joints, pub_));
+          controllers_[name] = std::make_shared<LastPointController>(name, joints, pub_);
         else if (type == "via points")
-          controllers_[name].reset(new ViaPointController(name, joints, pub_));
+          controllers_[name] = std::make_shared<ViaPointController>(name, joints, pub_);
         else if (type == "interpolate")
-          controllers_[name].reset(new InterpolatingController(name, joints, pub_));
+          controllers_[name] = std::make_shared<InterpolatingController>(name, joints, pub_);
         else
           ROS_ERROR_STREAM("Unknown fake controller type: " << type);
 

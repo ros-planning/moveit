@@ -73,8 +73,9 @@ move_group::MoveGroupContext::MoveGroupContext(const moveit_cpp::MoveItCppPtr& m
   if (allow_trajectory_execution_)
   {
     trajectory_execution_manager_ = moveit_cpp_->getTrajectoryExecutionManager();
-    plan_execution_.reset(new plan_execution::PlanExecution(planning_scene_monitor_, trajectory_execution_manager_));
-    plan_with_sensing_.reset(new plan_execution::PlanWithSensing(trajectory_execution_manager_));
+    plan_execution_ =
+        std::make_shared<plan_execution::PlanExecution>(planning_scene_monitor_, trajectory_execution_manager_);
+    plan_with_sensing_ = std::make_shared<plan_execution::PlanWithSensing>(trajectory_execution_manager_);
     if (debug)
       plan_with_sensing_->displayCostSources(true);
   }

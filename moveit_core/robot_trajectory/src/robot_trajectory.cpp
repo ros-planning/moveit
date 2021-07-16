@@ -358,7 +358,7 @@ RobotTrajectory& RobotTrajectory::setRobotTrajectoryMsg(const moveit::core::Robo
                                                         const trajectory_msgs::JointTrajectory& trajectory)
 {
   // make a copy just in case the next clear() removes the memory for the reference passed in
-  const moveit::core::RobotState copy(reference_state);
+  const moveit::core::RobotState copy(reference_state);  // NOLINT(performance-unnecessary-copy-initialization)
   clear();
   std::size_t state_count = trajectory.points.size();
   ros::Time last_time_stamp = trajectory.header.stamp;

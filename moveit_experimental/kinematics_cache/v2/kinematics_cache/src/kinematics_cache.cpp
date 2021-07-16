@@ -53,8 +53,8 @@ bool KinematicsCache::initialize(kinematics::KinematicsBaseConstPtr& kinematics_
   kinematics_solver_ = kinematics_solver;
   kinematic_model_ = kinematic_model;
   joint_model_group_ = kinematic_model_->getJointModelGroup(kinematics_solver_->getGroupName());
-  kinematic_state_.reset(new moveit::core::RobotState(kinematic_model));
-  joint_state_group_.reset(new moveit::core::JointStateGroup(kinematic_state_.get(), joint_model_group_));
+  kinematic_state_ = std::make_shared<moveit::core::RobotState>(kinematic_model);
+  joint_state_group_ = std::make_shared<moveit::core::JointStateGroup>(kinematic_state_.get(), joint_model_group_);
 
   setup(opt);
   return true;

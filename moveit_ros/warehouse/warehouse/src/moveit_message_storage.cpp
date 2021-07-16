@@ -67,7 +67,7 @@ typename warehouse_ros::DatabaseConnection::Ptr moveit_warehouse::loadDatabase()
 {
   if (!DBLOADER)
   {
-    DBLOADER.reset(new warehouse_ros::DatabaseLoader());
+    DBLOADER = std::make_unique<warehouse_ros::DatabaseLoader>();
   }
   return DBLOADER->loadDatabase();
   // return typename warehouse_ros::DatabaseConnection::Ptr(new warehouse_ros_mongo::MongoDatabaseConnection());

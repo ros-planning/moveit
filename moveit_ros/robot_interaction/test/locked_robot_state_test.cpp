@@ -224,7 +224,7 @@ static moveit::core::RobotModelPtr getModel()
     urdf::ModelInterfaceSharedPtr urdf(urdf::parseURDF(URDF_STR));
     srdf::ModelSharedPtr srdf(new srdf::Model());
     srdf->initString(*urdf, SRDF_STR);
-    model.reset(new moveit::core::RobotModel(urdf, srdf));
+    model = std::make_shared<moveit::core::RobotModel>(urdf, srdf);
   }
   return model;
 }

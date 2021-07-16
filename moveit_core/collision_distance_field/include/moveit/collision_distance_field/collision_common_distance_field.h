@@ -65,7 +65,8 @@ struct GroupStateRepresentation
     {
       if (gsr.link_body_decompositions_[i])
       {
-        link_body_decompositions_[i].reset(new PosedBodySphereDecomposition(*gsr.link_body_decompositions_[i]));
+        link_body_decompositions_[i] =
+            std::make_shared<PosedBodySphereDecomposition>(*gsr.link_body_decompositions_[i]);
       }
     }
 

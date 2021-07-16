@@ -51,7 +51,7 @@ public:
   {
     ros::NodeHandle nh;
     display_bfs_publisher_ = nh.advertise<visualization_msgs::Marker>("planning_components_visualization", 10, true);
-    sbpl_interface_.reset(new sbpl_interface::SBPLInterface(model));
+    sbpl_interface_ = std::make_shared<sbpl_interface::SBPLInterface>(model);
   }
 
   bool canServiceRequest(const moveit_msgs::GetMotionPlan::Request& req,

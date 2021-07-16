@@ -363,7 +363,7 @@ protected:
     urdf::ModelInterfaceSharedPtr urdf_model = urdf::parseURDF(MODEL2);
     srdf::ModelSharedPtr srdf_model(new srdf::Model());
     srdf_model->initString(*urdf_model, SMODEL2);
-    robot_model_.reset(new moveit::core::RobotModel(urdf_model, srdf_model));
+    robot_model_ = std::make_shared<moveit::core::RobotModel>(urdf_model, srdf_model);
   }
 
   void TearDown() override

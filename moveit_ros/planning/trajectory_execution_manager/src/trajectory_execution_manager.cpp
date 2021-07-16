@@ -126,8 +126,9 @@ void TrajectoryExecutionManager::initialize()
   // load the controller manager plugin
   try
   {
-    controller_manager_loader_.reset(new pluginlib::ClassLoader<moveit_controller_manager::MoveItControllerManager>(
-        "moveit_core", "moveit_controller_manager::MoveItControllerManager"));
+    controller_manager_loader_ =
+        std::make_unique<pluginlib::ClassLoader<moveit_controller_manager::MoveItControllerManager>>(
+            "moveit_core", "moveit_controller_manager::MoveItControllerManager");
   }
   catch (pluginlib::PluginlibException& ex)
   {
@@ -358,8 +359,8 @@ bool TrajectoryExecutionManager::pushAndExecute(const moveit_msgs::RobotTrajecto
       boost::mutex::scoped_lock slock(continuous_execution_mutex_);
       continuous_execution_queue_.push_back(context);
       if (!continuous_execution_thread_)
-        continuous_execution_thread_.reset(
-            new boost::thread(boost::bind(&TrajectoryExecutionManager::continuousExecutionThread, this)));
+        continuous_execution_thread_ =
+            std::make_unique<boost::thread>(boost::bind(&TrajectoryExecutionManager::continuousExecutionThread, this));
     }
     last_execution_status_ = moveit_controller_manager::ExecutionStatus::SUCCEEDED;
     continuous_execution_condition_.notify_all();
@@ -606,7 +607,7 @@ bool TrajectoryExecutionManager::checkControllerCombination(std::vector<std::str
 void TrajectoryExecutionManager::generateControllerCombination(std::size_t start_index, std::size_t controller_count,
                                                                const std::vector<std::string>& available_controllers,
                                                                std::vector<std::string>& selected_controllers,
-                                                               std::vector<std::vector<std::string> >& selected_options,
+                                                               std::vector<std::vector<std::string>>& selected_options,
                                                                const std::set<std::string>& actuated_joints)
 {
   if (selected_controllers.size() == controller_count)
@@ -661,7 +662,7 @@ struct OrderPotentialControllerCombination
     return false;
   }
 
-  std::vector<std::vector<std::string> > selected_options;
+  std::vector<std::vector<std::string>> selected_options;
   std::vector<std::size_t> nrdefault;
   std::vector<std::size_t> nrjoints;
   std::vector<std::size_t> nractive;
@@ -676,7 +677,7 @@ bool TrajectoryExecutionManager::findControllers(const std::set<std::string>& ac
   // generate all combinations of controller_count controllers that operate on disjoint sets of joints
   std::vector<std::string> work_area;
   OrderPotentialControllerCombination order;
-  std::vector<std::vector<std::string> >& selected_options = order.selected_options;
+  std::vector<std::vector<std::string>>& selected_options = order.selected_options;
   generateControllerCombination(0, controller_count, available_controllers, work_area, selected_options,
                                 actuated_joints);
 
@@ -1223,8 +1224,8 @@ void TrajectoryExecutionManager::execute(const ExecutionCompleteCallback& callba
 
   // start the execution thread
   execution_complete_ = false;
-  execution_thread_.reset(
-      new boost::thread(&TrajectoryExecutionManager::executeThread, this, callback, part_callback, auto_clear));
+  execution_thread_ = std::make_unique<boost::thread>(&TrajectoryExecutionManager::executeThread, this, callback,
+                                                      part_callback, auto_clear);
 }
 
 moveit_controller_manager::ExecutionStatus TrajectoryExecutionManager::waitForExecution()

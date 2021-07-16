@@ -147,8 +147,8 @@ void CurrentStateMonitor::startStateMonitor(const std::string& joint_states_topi
       joint_state_subscriber_ = nh_.subscribe(joint_states_topic, 25, &CurrentStateMonitor::jointStateCallback, this);
     if (tf_buffer_ && !robot_model_->getMultiDOFJointModels().empty())
     {
-      tf_connection_.reset(new TFConnection(
-          tf_buffer_->_addTransformsChangedListener(boost::bind(&CurrentStateMonitor::tfCallback, this))));
+      tf_connection_ = std::make_shared<TFConnection>(
+          tf_buffer_->_addTransformsChangedListener(boost::bind(&CurrentStateMonitor::tfCallback, this)));
     }
     state_monitor_started_ = true;
     monitor_start_time_ = ros::Time::now();

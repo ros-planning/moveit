@@ -115,7 +115,7 @@ public:
 
     joint_model_group_ = getRobotModel()->getJointModelGroup(opt.group_name_);
 
-    joint_state_target_.reset(new moveit::core::RobotState(getRobotModel()));
+    joint_state_target_ = std::make_shared<moveit::core::RobotState>(getRobotModel());
     joint_state_target_->setToDefaultValues();
     active_target_ = JOINT;
     can_look_ = false;
@@ -148,20 +148,20 @@ public:
       timeout_for_servers = ros::WallTime();  // wait for ever
     double allotted_time = wait_for_servers.toSec();
 
-    move_action_client_.reset(
-        new actionlib::SimpleActionClient<moveit_msgs::MoveGroupAction>(node_handle_, move_group::MOVE_ACTION, false));
+    move_action_client_ = std::make_unique<actionlib::SimpleActionClient<moveit_msgs::MoveGroupAction>>(
+        node_handle_, move_group::MOVE_ACTION, false);
     waitForAction(move_action_client_, move_group::MOVE_ACTION, timeout_for_servers, allotted_time);
 
-    pick_action_client_.reset(
-        new actionlib::SimpleActionClient<moveit_msgs::PickupAction>(node_handle_, move_group::PICKUP_ACTION, false));
+    pick_action_client_ = std::make_unique<actionlib::SimpleActionClient<moveit_msgs::PickupAction>>(
+        node_handle_, move_group::PICKUP_ACTION, false);
     waitForAction(pick_action_client_, move_group::PICKUP_ACTION, timeout_for_servers, allotted_time);
 
-    place_action_client_.reset(
-        new actionlib::SimpleActionClient<moveit_msgs::PlaceAction>(node_handle_, move_group::PLACE_ACTION, false));
+    place_action_client_ = std::make_unique<actionlib::SimpleActionClient<moveit_msgs::PlaceAction>>(
+        node_handle_, move_group::PLACE_ACTION, false);
     waitForAction(place_action_client_, move_group::PLACE_ACTION, timeout_for_servers, allotted_time);
 
-    execute_action_client_.reset(new actionlib::SimpleActionClient<moveit_msgs::ExecuteTrajectoryAction>(
-        node_handle_, move_group::EXECUTE_ACTION_NAME, false));
+    execute_action_client_ = std::make_unique<actionlib::SimpleActionClient<moveit_msgs::ExecuteTrajectoryAction>>(
+        node_handle_, move_group::EXECUTE_ACTION_NAME, false);
     waitForAction(execute_action_client_, move_group::EXECUTE_ACTION_NAME, timeout_for_servers, allotted_time);
 
     query_service_ =
@@ -425,7 +425,7 @@ public:
 
   void setStartState(const moveit::core::RobotState& start_state)
   {
-    considered_start_state_.reset(new moveit::core::RobotState(start_state));
+    considered_start_state_ = std::make_shared<moveit::core::RobotState>(start_state);
   }
 
   void setStartStateToCurrentState()
@@ -561,7 +561,7 @@ public:
     const std::string& eef = end_effector_link.empty() ? end_effector_link_ : end_effector_link;
 
     // if multiple pose targets are set, return the first one
-    std::map<std::string, std::vector<geometry_msgs::PoseStamped> >::const_iterator jt = pose_targets_.find(eef);
+    std::map<std::string, std::vector<geometry_msgs::PoseStamped>>::const_iterator jt = pose_targets_.find(eef);
     if (jt != pose_targets_.end())
       if (!jt->second.empty())
         return jt->second.at(0);
@@ -576,7 +576,7 @@ public:
   {
     const std::string& eef = end_effector_link.empty() ? end_effector_link_ : end_effector_link;
 
-    std::map<std::string, std::vector<geometry_msgs::PoseStamped> >::const_iterator jt = pose_targets_.find(eef);
+    std::map<std::string, std::vector<geometry_msgs::PoseStamped>>::const_iterator jt = pose_targets_.find(eef);
     if (jt != pose_targets_.end())
       if (!jt->second.empty())
         return jt->second;
@@ -1194,7 +1194,7 @@ public:
 
   void setPathConstraints(const moveit_msgs::Constraints& constraint)
   {
-    path_constraints_.reset(new moveit_msgs::Constraints(constraint));
+    path_constraints_ = std::make_unique<moveit_msgs::Constraints>(constraint);
   }
 
   bool setPathConstraints(const std::string& constraint)
@@ -1204,7 +1204,7 @@ public:
       moveit_warehouse::ConstraintsWithMetadata msg_m;
       if (constraints_storage_->getConstraints(msg_m, constraint, robot_model_->getName(), opt_.group_name_))
       {
-        path_constraints_.reset(new moveit_msgs::Constraints(static_cast<moveit_msgs::Constraints>(*msg_m)));
+        path_constraints_ = std::make_unique<moveit_msgs::Constraints>(static_cast<moveit_msgs::Constraints>(*msg_m));
         return true;
       }
       else
@@ -1221,7 +1221,7 @@ public:
 
   void setTrajectoryConstraints(const moveit_msgs::TrajectoryConstraints& constraint)
   {
-    trajectory_constraints_.reset(new moveit_msgs::TrajectoryConstraints(constraint));
+    trajectory_constraints_ = std::make_unique<moveit_msgs::TrajectoryConstraints>(constraint);
   }
 
   void clearTrajectoryConstraints()
@@ -1265,8 +1265,8 @@ public:
     initializing_constraints_ = true;
     if (constraints_init_thread_)
       constraints_init_thread_->join();
-    constraints_init_thread_.reset(
-        new boost::thread(boost::bind(&MoveGroupInterfaceImpl::initializeConstraintsStorageThread, this, host, port)));
+    constraints_init_thread_ = std::make_unique<boost::thread>(
+        boost::bind(&MoveGroupInterfaceImpl::initializeConstraintsStorageThread, this, host, port));
   }
 
   void setWorkspace(double minx, double miny, double minz, double maxx, double maxy, double maxz)
@@ -1291,7 +1291,7 @@ private:
       conn->setParams(host, port);
       if (conn->connect())
       {
-        constraints_storage_.reset(new moveit_warehouse::ConstraintsStorage(conn));
+        constraints_storage_ = std::make_unique<moveit_warehouse::ConstraintsStorage>(conn);
       }
     }
     catch (std::exception& ex)
@@ -1306,10 +1306,10 @@ private:
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   moveit::core::RobotModelConstPtr robot_model_;
   planning_scene_monitor::CurrentStateMonitorPtr current_state_monitor_;
-  std::unique_ptr<actionlib::SimpleActionClient<moveit_msgs::MoveGroupAction> > move_action_client_;
-  std::unique_ptr<actionlib::SimpleActionClient<moveit_msgs::ExecuteTrajectoryAction> > execute_action_client_;
-  std::unique_ptr<actionlib::SimpleActionClient<moveit_msgs::PickupAction> > pick_action_client_;
-  std::unique_ptr<actionlib::SimpleActionClient<moveit_msgs::PlaceAction> > place_action_client_;
+  std::unique_ptr<actionlib::SimpleActionClient<moveit_msgs::MoveGroupAction>> move_action_client_;
+  std::unique_ptr<actionlib::SimpleActionClient<moveit_msgs::ExecuteTrajectoryAction>> execute_action_client_;
+  std::unique_ptr<actionlib::SimpleActionClient<moveit_msgs::PickupAction>> pick_action_client_;
+  std::unique_ptr<actionlib::SimpleActionClient<moveit_msgs::PlaceAction>> place_action_client_;
 
   // general planning params
   moveit::core::RobotStatePtr considered_start_state_;
@@ -1333,7 +1333,7 @@ private:
 
   // pose goal;
   // for each link we have a set of possible goal locations;
-  std::map<std::string, std::vector<geometry_msgs::PoseStamped> > pose_targets_;
+  std::map<std::string, std::vector<geometry_msgs::PoseStamped>> pose_targets_;
 
   // common properties for goals
   ActiveTargetType active_target_;
@@ -1644,7 +1644,7 @@ const std::vector<std::string>& MoveGroupInterface::getLinkNames() const
 
 std::map<std::string, double> MoveGroupInterface::getNamedTargetValues(const std::string& name) const
 {
-  std::map<std::string, std::vector<double> >::const_iterator it = remembered_joint_values_.find(name);
+  std::map<std::string, std::vector<double>>::const_iterator it = remembered_joint_values_.find(name);
   std::map<std::string, double> positions;
 
   if (it != remembered_joint_values_.cend())
@@ -1664,7 +1664,7 @@ std::map<std::string, double> MoveGroupInterface::getNamedTargetValues(const std
 
 bool MoveGroupInterface::setNamedTarget(const std::string& name)
 {
-  std::map<std::string, std::vector<double> >::const_iterator it = remembered_joint_values_.find(name);
+  std::map<std::string, std::vector<double>>::const_iterator it = remembered_joint_values_.find(name);
   if (it != remembered_joint_values_.end())
   {
     return setJointValueTarget(it->second);

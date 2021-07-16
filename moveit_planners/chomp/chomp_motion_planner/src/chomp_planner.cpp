@@ -174,7 +174,8 @@ bool ChompPlanner::solve(const planning_scene::PlanningSceneConstPtr& planning_s
 
     // initialize a ChompOptimizer object to load up the optimizer with default parameters or with updated parameters in
     // case of a recovery behaviour
-    optimizer.reset(new ChompOptimizer(&trajectory, planning_scene, req.group_name, &params_nonconst, start_state));
+    optimizer =
+        std::make_unique<ChompOptimizer>(&trajectory, planning_scene, req.group_name, &params_nonconst, start_state);
     if (!optimizer->isInitialized())
     {
       ROS_ERROR_STREAM_NAMED("chomp_planner", "Could not initialize optimizer");

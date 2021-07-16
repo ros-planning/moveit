@@ -53,7 +53,7 @@ protected:
 
     // Load robot module
     robot_model_loader::RobotModelLoader::Options opt("robot_description");
-    model_loader_.reset(new robot_model_loader::RobotModelLoader(opt));
+    model_loader_ = std::make_shared<robot_model_loader::RobotModelLoader>(opt);
     robot_model_ = model_loader_->getModel();
 
     return;

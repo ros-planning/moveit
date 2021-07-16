@@ -76,7 +76,7 @@ protected:
     robot_model_ = moveit::core::loadTestingRobotModel("panda");
     robot_model_ok_ = static_cast<bool>(robot_model_);
 
-    acm_.reset(new collision_detection::AllowedCollisionMatrix());
+    acm_ = std::make_shared<collision_detection::AllowedCollisionMatrix>();
     // Use default collision operations in the SRDF to setup the acm
     const std::vector<std::string>& collision_links = robot_model_->getLinkModelNamesWithCollisionGeometry();
     acm_->setEntry(collision_links, collision_links, false);
@@ -86,9 +86,9 @@ protected:
     for (const srdf::Model::DisabledCollision& it : dc)
       acm_->setEntry(it.link1_, it.link2_, true);
 
-    cenv_.reset(new collision_detection::CollisionEnvBullet(robot_model_));
+    cenv_ = std::make_shared<collision_detection::CollisionEnvBullet>(robot_model_);
 
-    robot_state_.reset(new moveit::core::RobotState(robot_model_));
+    robot_state_ = std::make_shared<moveit::core::RobotState>(robot_model_);
 
     setToHome(*robot_state_);
   }
@@ -184,8 +184,7 @@ void addCollisionObjectsMesh(cb::BulletCastBVHManager& checker)
   s_pose.setIdentity();
 
   std::string kinect = "package://moveit_resources_panda_description/meshes/collision/hand.stl";
-  shapes::ShapeConstPtr s;
-  s.reset(shapes::createMeshFromResource(kinect));
+  auto s = std::shared_ptr<shapes::Shape>{ shapes::createMeshFromResource(kinect) };
   obj2_shapes.push_back(s);
   obj2_types.push_back(cb::CollisionObjectType::CONVEX_HULL);
   obj2_poses.push_back(s_pose);

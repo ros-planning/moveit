@@ -52,8 +52,8 @@ MoveItCpp::MoveItCpp(const Options& options, const ros::NodeHandle& nh,
   : tf_buffer_(tf_buffer), node_handle_(nh)
 {
   if (!tf_buffer_)
-    tf_buffer_.reset(new tf2_ros::Buffer());
-  tf_listener_.reset(new tf2_ros::TransformListener(*tf_buffer_));
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>();
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
   // Configure planning scene monitor
   if (!loadPlanningSceneMonitor(options.planning_scene_monitor_options))
@@ -81,8 +81,8 @@ MoveItCpp::MoveItCpp(const Options& options, const ros::NodeHandle& nh,
   }
 
   // TODO(henningkayser): configure trajectory execution manager
-  trajectory_execution_manager_.reset(new trajectory_execution_manager::TrajectoryExecutionManager(
-      robot_model_, planning_scene_monitor_->getStateMonitor()));
+  trajectory_execution_manager_ = std::make_shared<trajectory_execution_manager::TrajectoryExecutionManager>(
+      robot_model_, planning_scene_monitor_->getStateMonitor());
 
   ROS_DEBUG_NAMED(LOGNAME, "MoveItCpp running");
 }
@@ -95,8 +95,8 @@ MoveItCpp::~MoveItCpp()
 
 bool MoveItCpp::loadPlanningSceneMonitor(const PlanningSceneMonitorOptions& options)
 {
-  planning_scene_monitor_.reset(
-      new planning_scene_monitor::PlanningSceneMonitor(options.robot_description, tf_buffer_, options.name));
+  planning_scene_monitor_ = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(options.robot_description,
+                                                                                           tf_buffer_, options.name);
   // Allows us to sycronize to Rviz and also publish collision objects to ourselves
   ROS_DEBUG_STREAM_NAMED(LOGNAME, "Configuring Planning Scene Monitor");
   if (planning_scene_monitor_->getPlanningScene())
@@ -142,7 +142,7 @@ bool MoveItCpp::loadPlanningPipelines(const PlanningPipelineOptions& options)
     ROS_INFO_NAMED(LOGNAME, "Loading planning pipeline '%s'", planning_pipeline_name.c_str());
     ros::NodeHandle child_nh(node_handle, planning_pipeline_name);
     planning_pipeline::PlanningPipelinePtr pipeline;
-    pipeline.reset(new planning_pipeline::PlanningPipeline(robot_model_, child_nh, PLANNING_PLUGIN_PARAM));
+    pipeline = std::make_shared<planning_pipeline::PlanningPipeline>(robot_model_, child_nh, PLANNING_PLUGIN_PARAM);
 
     if (!pipeline->getPlannerManager())
     {
@@ -200,7 +200,7 @@ bool MoveItCpp::getCurrentState(moveit::core::RobotStatePtr& current_state, doub
   }
   {  // Lock planning scene
     planning_scene_monitor::LockedPlanningSceneRO scene(planning_scene_monitor_);
-    current_state.reset(new moveit::core::RobotState(scene->getCurrentState()));
+    current_state = std::make_shared<moveit::core::RobotState>(scene->getCurrentState());
   }  // Unlock planning scene
   return true;
 }

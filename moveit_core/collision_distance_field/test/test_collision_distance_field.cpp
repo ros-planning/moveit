@@ -62,10 +62,10 @@ protected:
   {
     robot_model_ = moveit::core::loadTestingRobotModel("pr2");
 
-    acm_.reset(new collision_detection::AllowedCollisionMatrix(robot_model_->getLinkModelNames(), true));
+    acm_ = std::make_shared<collision_detection::AllowedCollisionMatrix>(robot_model_->getLinkModelNames(), true);
 
     std::map<std::string, std::vector<collision_detection::CollisionSphere>> link_body_decompositions;
-    cenv_.reset(new DefaultCEnvType(robot_model_, link_body_decompositions));
+    cenv_ = std::make_shared<DefaultCEnvType>(robot_model_, link_body_decompositions);
   }
 
   void TearDown() override
@@ -193,7 +193,7 @@ TEST_F(DistanceFieldCollisionDetectionTester, ContactReporting)
 
   req.max_contacts = 10;
   req.max_contacts_per_pair = 2;
-  acm_.reset(new collision_detection::AllowedCollisionMatrix(robot_model_->getLinkModelNames(), false));
+  acm_ = std::make_shared<collision_detection::AllowedCollisionMatrix>(robot_model_->getLinkModelNames(), false);
   cenv_->checkSelfCollision(req, res, robot_state, *acm_);
   ASSERT_TRUE(res.collision);
   EXPECT_LE(res.contacts.size(), 10u);
@@ -269,7 +269,7 @@ TEST_F(DistanceFieldCollisionDetectionTester, AttachedBodyTester)
 
   req.group_name = "right_arm";
 
-  acm_.reset(new collision_detection::AllowedCollisionMatrix(robot_model_->getLinkModelNames(), true));
+  acm_ = std::make_shared<collision_detection::AllowedCollisionMatrix>(robot_model_->getLinkModelNames(), true);
 
   moveit::core::RobotState robot_state(robot_model_);
   robot_state.setToDefaultValues();
@@ -311,7 +311,7 @@ TEST_F(DistanceFieldCollisionDetectionTester, AttachedBodyTester)
   robot_state.clearAttachedBody("box");
 
   touch_links.insert("r_gripper_palm_link");
-  shapes[0].reset(new shapes::Box(.1, .1, .1));
+  shapes[0] = std::make_shared<shapes::Box>(.1, .1, .1);
 
   moveit::core::AttachedBody* attached_body_1 = new moveit::core::AttachedBody(
       robot_state.getLinkModel("r_gripper_palm_link"), "box", shapes, poses, touch_links, empty_state);

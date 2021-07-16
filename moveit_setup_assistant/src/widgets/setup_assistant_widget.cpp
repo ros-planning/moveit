@@ -71,7 +71,7 @@ SetupAssistantWidget::SetupAssistantWidget(QWidget* parent, const boost::program
   rviz_render_panel_ = nullptr;
 
   // Create object to hold all MoveIt configuration data
-  config_data_.reset(new MoveItConfigData());
+  config_data_ = std::make_shared<MoveItConfigData>();
 
   // Set debug mode flag if necessary
   if (args.count("debug"))

@@ -104,8 +104,8 @@ static void roscpp_init_or_stop(bool init)
     // if ROS (cpp) is not initialized, we initialize it
     if (!ros::isInitialized())
     {
-      proxy.reset(new InitProxy());
-      spinner.reset(new ros::AsyncSpinner(1));
+      proxy = std::make_unique<InitProxy>();
+      spinner = std::make_unique<ros::AsyncSpinner>(1);
       spinner->start();
     }
   }

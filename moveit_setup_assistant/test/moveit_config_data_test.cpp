@@ -69,7 +69,7 @@ TEST_F(MoveItConfigData, ReadingControllers)
   // Contains all the configuration data for the setup assistant
   moveit_setup_assistant::MoveItConfigDataPtr config_data;
 
-  config_data.reset(new moveit_setup_assistant::MoveItConfigData());
+  config_data = std::make_shared<moveit_setup_assistant::MoveItConfigData>();
   config_data->srdf_->srdf_model_ = srdf_model_;
   config_data->setRobotModel(robot_model_);
 
@@ -92,7 +92,7 @@ TEST_F(MoveItConfigData, ReadingControllers)
   EXPECT_EQ(config_data->outputROSControllersYAML(test_file), true);
 
   // Reset MoveIt config MoveItConfigData
-  config_data.reset(new moveit_setup_assistant::MoveItConfigData());
+  config_data = std::make_shared<moveit_setup_assistant::MoveItConfigData>();
 
   // Initially no controllers
   EXPECT_EQ(config_data->getROSControllers().size(), 0u);
@@ -112,7 +112,7 @@ TEST_F(MoveItConfigData, ReadingSensorsConfig)
 {
   // Contains all the config data for the setup assistant
   moveit_setup_assistant::MoveItConfigDataPtr config_data;
-  config_data.reset(new moveit_setup_assistant::MoveItConfigData());
+  config_data = std::make_shared<moveit_setup_assistant::MoveItConfigData>();
 
   boost::filesystem::path setup_assistant_path(config_data->setup_assistant_path_);
 
@@ -139,7 +139,7 @@ TEST_F(MoveItConfigData, WritingSensorsConfig)
 {
   // Contains all the config data for the setup assistant
   moveit_setup_assistant::MoveItConfigDataPtr config_data;
-  config_data.reset(new moveit_setup_assistant::MoveItConfigData());
+  config_data = std::make_shared<moveit_setup_assistant::MoveItConfigData>();
 
   // Empty Config Should have No Sensors
   EXPECT_EQ(config_data->getSensorPluginConfig().size(), 0u);
@@ -156,20 +156,20 @@ TEST_F(MoveItConfigData, WritingSensorsConfig)
       (setup_assistant_path / "templates/moveit_config_pkg_template/config/sensors_3d.yaml").string();
 
   // Read from the written file
-  config_data.reset(new moveit_setup_assistant::MoveItConfigData());
+  config_data = std::make_shared<moveit_setup_assistant::MoveItConfigData>();
   EXPECT_EQ(config_data->input3DSensorsYAML(test_file), true);
 
   // Should still have No Sensors
   EXPECT_EQ(config_data->getSensorPluginConfig().size(), 0u);
 
   // Now load the default file and write it to a file
-  config_data.reset(new moveit_setup_assistant::MoveItConfigData());
+  config_data = std::make_shared<moveit_setup_assistant::MoveItConfigData>();
   EXPECT_EQ(config_data->input3DSensorsYAML(default_file_path), true);
   EXPECT_EQ(config_data->getSensorPluginConfig().size(), 2u);
   EXPECT_EQ(config_data->output3DSensorPluginYAML(test_file), true);
 
   // Read from the written file
-  config_data.reset(new moveit_setup_assistant::MoveItConfigData());
+  config_data = std::make_shared<moveit_setup_assistant::MoveItConfigData>();
   EXPECT_EQ(config_data->input3DSensorsYAML(test_file), true);
 
   // Should now have two sensors

@@ -114,7 +114,7 @@ Q_SIGNALS:
   void cancelEditing();
 
   /// Event for telling rviz to highlight a link of the robot
-  void highlightLink(const std::string& name, const QColor&);
+  void highlightLink(const std::string& name, const QColor& /*_t2*/);
 
   /// Event for telling rviz to unhighlight all links of the robot
   void unhighlightAll();

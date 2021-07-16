@@ -50,7 +50,7 @@ TrajectoryDisplay::TrajectoryDisplay() : Display()
                                "The name of the ROS parameter where the URDF for the robot is loaded", this,
                                SLOT(changedRobotDescription()), this);
 
-  trajectory_visual_.reset(new TrajectoryVisualization(this, this));
+  trajectory_visual_ = std::make_shared<TrajectoryVisualization>(this, this);
 }
 
 TrajectoryDisplay::~TrajectoryDisplay() = default;
@@ -66,7 +66,7 @@ void TrajectoryDisplay::loadRobotModel()
 {
   try
   {
-    rdf_loader_.reset(new rdf_loader::RDFLoader(robot_description_property_->getStdString()));
+    rdf_loader_ = std::make_shared<rdf_loader::RDFLoader>(robot_description_property_->getStdString());
 
     if (!rdf_loader_->getURDF())
     {
@@ -78,7 +78,7 @@ void TrajectoryDisplay::loadRobotModel()
 
     const srdf::ModelSharedPtr& srdf =
         rdf_loader_->getSRDF() ? rdf_loader_->getSRDF() : srdf::ModelSharedPtr(new srdf::Model());
-    robot_model_.reset(new moveit::core::RobotModel(rdf_loader_->getURDF(), srdf));
+    robot_model_ = std::make_shared<moveit::core::RobotModel>(rdf_loader_->getURDF(), srdf);
 
     // Send to child class
     trajectory_visual_->onRobotModelLoaded(robot_model_);

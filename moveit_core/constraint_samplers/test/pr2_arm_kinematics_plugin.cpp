@@ -276,11 +276,11 @@ bool PR2ArmKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_mo
     active_ = false;
     ROS_ERROR("Could not load kdl tree");
   }
-  jnt_to_pose_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
+  jnt_to_pose_solver_ = std::make_shared<KDL::ChainFkSolverPos_recursive>(kdl_chain_);
   free_angle_ = 2;
 
-  pr2_arm_ik_solver_.reset(new pr2_arm_kinematics::PR2ArmIKSolver(*robot_model.getURDF(), base_frame_, tip_frames_[0],
-                                                                  search_discretization, free_angle_));
+  pr2_arm_ik_solver_ = std::make_shared<pr2_arm_kinematics::PR2ArmIKSolver>(
+      *robot_model.getURDF(), base_frame_, tip_frames_[0], search_discretization, free_angle_);
   if (!pr2_arm_ik_solver_->active_)
   {
     ROS_ERROR("Could not load ik");

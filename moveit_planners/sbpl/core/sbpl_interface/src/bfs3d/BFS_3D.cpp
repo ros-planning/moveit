@@ -133,8 +133,8 @@ void BFS_3D::run(int x, int y, int z)
 
   distance_grid[origin] = 0;
 
-  search_thread_.reset(
-      new boost::thread(&BFS_3D::search, this, dim_x, dim_xy, distance_grid, queue, queue_head, queue_tail));
+  search_thread_ = std::make_shared<boost::thread>(&BFS_3D::search, this, dim_x, dim_xy, distance_grid, queue,
+                                                   queue_head, queue_tail);
   running = true;
 }
 

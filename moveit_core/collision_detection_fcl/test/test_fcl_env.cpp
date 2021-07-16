@@ -72,7 +72,7 @@ protected:
     robot_model_ = moveit::core::loadTestingRobotModel("panda");
     robot_model_ok_ = static_cast<bool>(robot_model_);
 
-    acm_.reset(new collision_detection::AllowedCollisionMatrix(robot_model_->getLinkModelNames(), false));
+    acm_ = std::make_shared<collision_detection::AllowedCollisionMatrix>(robot_model_->getLinkModelNames(), false);
 
     acm_->setEntry("panda_link0", "panda_link1", true);
     acm_->setEntry("panda_link1", "panda_link2", true);
@@ -88,9 +88,9 @@ protected:
     acm_->setEntry("panda_link5", "panda_link7", true);
     acm_->setEntry("panda_link6", "panda_hand", true);
 
-    c_env_.reset(new collision_detection::CollisionEnvFCL(robot_model_));
+    c_env_ = std::make_shared<collision_detection::CollisionEnvFCL>(robot_model_);
 
-    robot_state_.reset(new moveit::core::RobotState(robot_model_));
+    robot_state_ = std::make_shared<moveit::core::RobotState>(robot_model_);
 
     setToHome(*robot_state_);
   }

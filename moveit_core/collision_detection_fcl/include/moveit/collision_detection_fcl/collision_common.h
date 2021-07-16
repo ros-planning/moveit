@@ -233,7 +233,7 @@ struct FCLGeometry
     if (!newType && collision_geometry_data_)
       if (collision_geometry_data_->ptr.raw == reinterpret_cast<const void*>(data))
         return;
-    collision_geometry_data_.reset(new CollisionGeometryData(data, shape_index));
+    collision_geometry_data_ = std::make_shared<CollisionGeometryData>(data, shape_index);
     collision_geometry_->setUserData(collision_geometry_data_.get());
   }
 

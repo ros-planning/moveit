@@ -113,8 +113,8 @@ void IntegrationTestCommandListManager::SetUp()
   ASSERT_TRUE(ph_.getParam(TEST_DATA_FILE_NAME, test_data_file_name));
 
   // load the test data provider
-  data_loader_.reset(
-      new pilz_industrial_motion_planner_testutils::XmlTestdataLoader{ test_data_file_name, robot_model_ });
+  data_loader_ =
+      std::make_unique<pilz_industrial_motion_planner_testutils::XmlTestdataLoader>(test_data_file_name, robot_model_);
   ASSERT_NE(nullptr, data_loader_) << "Failed to load test data by provider.";
 
   // Define and set the current scene and manager test object

@@ -117,7 +117,7 @@ DynamicsSolver::DynamicsSolver(const moveit::core::RobotModelConstPtr& robot_mod
   num_joints_ = kdl_chain_.getNrOfJoints();
   num_segments_ = kdl_chain_.getNrOfSegments();
 
-  state_.reset(new moveit::core::RobotState(robot_model_));
+  state_ = std::make_shared<moveit::core::RobotState>(robot_model_);
   state_->setToDefaultValues();
 
   const std::vector<std::string>& joint_model_names = joint_model_group_->getJointModelNames();
@@ -135,7 +135,7 @@ DynamicsSolver::DynamicsSolver(const moveit::core::RobotModelConstPtr& robot_mod
   gravity_ = gravity.Norm();
   ROS_DEBUG_NAMED("dynamics_solver", "Gravity norm set to %f", gravity_);
 
-  chain_id_solver_.reset(new KDL::ChainIdSolver_RNE(kdl_chain_, gravity));
+  chain_id_solver_ = std::make_shared<KDL::ChainIdSolver_RNE>(kdl_chain_, gravity);
 }
 
 bool DynamicsSolver::getTorques(const std::vector<double>& joint_angles, const std::vector<double>& joint_velocities,

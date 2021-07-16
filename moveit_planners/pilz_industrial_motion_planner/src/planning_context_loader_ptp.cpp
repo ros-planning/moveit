@@ -52,7 +52,7 @@ bool pilz_industrial_motion_planner::PlanningContextLoaderPTP::loadContext(
 {
   if (limits_set_ && model_set_)
   {
-    planning_context.reset(new PlanningContextPTP(name, group, model_, limits_));
+    planning_context = std::make_shared<PlanningContextPTP>(name, group, model_, limits_);
     return true;
   }
   else

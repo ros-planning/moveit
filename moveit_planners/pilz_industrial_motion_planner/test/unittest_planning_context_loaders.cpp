@@ -65,9 +65,9 @@ protected:
     // Load the plugin
     try
     {
-      planning_context_loader_class_loader_.reset(
-          new pluginlib::ClassLoader<pilz_industrial_motion_planner::PlanningContextLoader>(
-              "pilz_industrial_motion_planner", "pilz_industrial_motion_planner::PlanningContextLoader"));
+      planning_context_loader_class_loader_ =
+          std::make_unique<pluginlib::ClassLoader<pilz_industrial_motion_planner::PlanningContextLoader>>(
+              "pilz_industrial_motion_planner", "pilz_industrial_motion_planner::PlanningContextLoader");
     }
     catch (pluginlib::PluginlibException& ex)
     {
@@ -100,7 +100,7 @@ protected:
   robot_model::RobotModelConstPtr robot_model_{ robot_model_loader::RobotModelLoader(GetParam().back()).getModel() };
 
   // Load the plugin
-  boost::scoped_ptr<pluginlib::ClassLoader<pilz_industrial_motion_planner::PlanningContextLoader>>
+  std::unique_ptr<pluginlib::ClassLoader<pilz_industrial_motion_planner::PlanningContextLoader>>
       planning_context_loader_class_loader_;
 
   pilz_industrial_motion_planner::PlanningContextLoaderPtr planning_context_loader_;

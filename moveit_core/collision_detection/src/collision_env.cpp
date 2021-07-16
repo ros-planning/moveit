@@ -283,7 +283,7 @@ void CollisionEnv::setWorld(const WorldPtr& world)
 {
   world_ = world;
   if (!world_)
-    world_.reset(new World());
+    world_ = std::make_shared<World>();
 
   world_const_ = world;
 }

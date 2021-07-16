@@ -69,17 +69,18 @@ void MotionPlanningFrame::saveSceneButtonClicked()
     {
       std::unique_ptr<QMessageBox> q;
       if (name.empty())
-        q.reset(new QMessageBox(QMessageBox::Question, "Change Planning Scene Name",
-                                QString("The name for the planning scene should not be empty. Would you like to rename "
-                                        "the planning scene?'"),
-                                QMessageBox::Cancel, this));
+        q = std::make_unique<QMessageBox>(
+            QMessageBox::Question, "Change Planning Scene Name",
+            QString("The name for the planning scene should not be empty. Would you like to rename "
+                    "the planning scene?'"),
+            QMessageBox::Cancel, this);
       else
-        q.reset(new QMessageBox(QMessageBox::Question, "Confirm Planning Scene Overwrite",
-                                QString("A planning scene named '")
-                                    .append(name.c_str())
-                                    .append("' already exists. Do you wish to "
-                                            "overwrite that scene?"),
-                                QMessageBox::Yes | QMessageBox::No, this));
+        q = std::make_unique<QMessageBox>(QMessageBox::Question, "Confirm Planning Scene Overwrite",
+                                          QString("A planning scene named '")
+                                              .append(name.c_str())
+                                              .append("' already exists. Do you wish to "
+                                                      "overwrite that scene?"),
+                                          QMessageBox::Yes | QMessageBox::No, this);
       std::unique_ptr<QPushButton> rename(q->addButton("&Rename", QMessageBox::AcceptRole));
       if (q->exec() != QMessageBox::Yes)
       {
@@ -143,17 +144,18 @@ void MotionPlanningFrame::saveQueryButtonClicked()
         {
           std::unique_ptr<QMessageBox> q;
           if (query_name.empty())
-            q.reset(new QMessageBox(QMessageBox::Question, "Change Planning Query Name",
-                                    QString("The name for the planning query should not be empty. Would you like to "
-                                            "rename the planning query?'"),
-                                    QMessageBox::Cancel, this));
+            q = std::make_unique<QMessageBox>(
+                QMessageBox::Question, "Change Planning Query Name",
+                QString("The name for the planning query should not be empty. Would you like to "
+                        "rename the planning query?'"),
+                QMessageBox::Cancel, this);
           else
-            q.reset(new QMessageBox(QMessageBox::Question, "Confirm Planning Query Overwrite",
-                                    QString("A planning query named '")
-                                        .append(query_name.c_str())
-                                        .append("' already exists. Do you wish "
-                                                "to overwrite that query?"),
-                                    QMessageBox::Yes | QMessageBox::No, this));
+            q = std::make_unique<QMessageBox>(QMessageBox::Question, "Confirm Planning Query Overwrite",
+                                              QString("A planning query named '")
+                                                  .append(query_name.c_str())
+                                                  .append("' already exists. Do you wish "
+                                                          "to overwrite that query?"),
+                                              QMessageBox::Yes | QMessageBox::No, this);
           std::unique_ptr<QPushButton> rename(q->addButton("&Rename", QMessageBox::AcceptRole));
           if (q->exec() == QMessageBox::Yes)
             break;

@@ -117,7 +117,7 @@ void TrajectoryBlenderTransitionWindowTest::SetUp()
   ASSERT_TRUE(ph_.getParam(TEST_DATA_FILE_NAME, test_data_file_name_));
 
   // load the test data provider
-  data_loader_.reset(new XmlTestdataLoader(test_data_file_name_, robot_model_));
+  data_loader_ = std::make_unique<XmlTestdataLoader>(test_data_file_name_, robot_model_);
   ASSERT_NE(nullptr, data_loader_) << "Failed to load test data by provider.";
 
   // check robot model
@@ -136,9 +136,9 @@ void TrajectoryBlenderTransitionWindowTest::SetUp()
   planner_limits_.setCartesianLimits(cart_limits);
 
   // initialize trajectory generators and blender
-  lin_generator_.reset(new TrajectoryGeneratorLIN(robot_model_, planner_limits_));
+  lin_generator_ = std::make_unique<TrajectoryGeneratorLIN>(robot_model_, planner_limits_);
   ASSERT_NE(nullptr, lin_generator_) << "failed to create LIN trajectory generator";
-  blender_.reset(new TrajectoryBlenderTransitionWindow(planner_limits_));
+  blender_ = std::make_unique<TrajectoryBlenderTransitionWindow>(planner_limits_);
   ASSERT_NE(nullptr, blender_) << "failed to create trajectory blender";
 }
 
