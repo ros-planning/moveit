@@ -128,7 +128,7 @@ bool pilz_industrial_motion_planner::PlanningContextBase<GeneratorT>::solve(plan
       moveit::core::robotStateToRobotStateMsg(getPlanningScene()->getCurrentState(), current_state);
       request_.start_state = current_state;
     }
-    bool result = generator_.generate(request_, res);
+    bool result = generator_.generate(getPlanningScene(), request_, res);
     return result;
     // res.error_code_.val = moveit_msgs::MoveItErrorCodes::INVALID_MOTION_PLAN;
     // return false; // TODO

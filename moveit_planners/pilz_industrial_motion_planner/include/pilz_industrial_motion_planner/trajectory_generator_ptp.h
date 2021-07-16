@@ -34,6 +34,8 @@
 
 #pragma once
 
+#include <moveit/planning_scene/planning_scene.h>
+
 #include "eigen3/Eigen/Eigen"
 #include "pilz_industrial_motion_planner/trajectory_generation_exceptions.h"
 #include "pilz_industrial_motion_planner/trajectory_generator.h"
@@ -64,7 +66,8 @@ public:
                          const pilz_industrial_motion_planner::LimitsContainer& planner_limits);
 
 private:
-  void extractMotionPlanInfo(const planning_interface::MotionPlanRequest& req, MotionPlanInfo& info) const override;
+  void extractMotionPlanInfo(const planning_scene::PlanningSceneConstPtr& scene,
+                             const planning_interface::MotionPlanRequest& req, MotionPlanInfo& info) const override;
 
   /**
    * @brief plan ptp joint trajectory with zero start velocity
@@ -81,7 +84,8 @@ private:
                const double& velocity_scaling_factor, const double& acceleration_scaling_factor,
                const double& sampling_time);
 
-  void plan(const planning_interface::MotionPlanRequest& req, const MotionPlanInfo& plan_info,
+  void plan(const planning_scene::PlanningSceneConstPtr& scene,
+            const planning_interface::MotionPlanRequest& req, const MotionPlanInfo& plan_info,
             const double& sampling_time, trajectory_msgs::JointTrajectory& joint_trajectory) override;
 
 private:

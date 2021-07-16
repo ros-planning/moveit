@@ -84,7 +84,8 @@ void TrajectoryGeneratorCIRC::cmdSpecificRequestValidation(const planning_interf
   }
 }
 
-void TrajectoryGeneratorCIRC::extractMotionPlanInfo(const planning_interface::MotionPlanRequest& req,
+void TrajectoryGeneratorCIRC::extractMotionPlanInfo(const planning_scene::PlanningSceneConstPtr& scene,
+                                                    const planning_interface::MotionPlanRequest& req,
                                                     TrajectoryGenerator::MotionPlanInfo& info) const
 {
   ROS_DEBUG("Extract necessary information from motion plan request.");
@@ -167,8 +168,8 @@ void TrajectoryGeneratorCIRC::extractMotionPlanInfo(const planning_interface::Mo
 
   // check goal pose ik before Cartesian motion plan starts
   std::map<std::string, double> ik_solution;
-  if (!computePoseIK(robot_model_, info.group_name, info.link_name, info.goal_pose, frame_id, info.start_joint_position,
-                     ik_solution))
+  if (!computePoseIK(scene, robot_model_, info.group_name, info.link_name, info.goal_pose, frame_id,
+                     info.start_joint_position, ik_solution))
   {
     // LCOV_EXCL_START
     std::ostringstream os;
@@ -186,7 +187,8 @@ void TrajectoryGeneratorCIRC::extractMotionPlanInfo(const planning_interface::Mo
   info.circ_path_point.second = circ_path_point;
 }
 
-void TrajectoryGeneratorCIRC::plan(const planning_interface::MotionPlanRequest& req, const MotionPlanInfo& plan_info,
+void TrajectoryGeneratorCIRC::plan(const planning_scene::PlanningSceneConstPtr& scene,
+                                   const planning_interface::MotionPlanRequest& req, const MotionPlanInfo& plan_info,
                                    const double& sampling_time, trajectory_msgs::JointTrajectory& joint_trajectory)
 {
   std::unique_ptr<KDL::Path> cart_path(setPathCIRC(plan_info));
@@ -202,7 +204,7 @@ void TrajectoryGeneratorCIRC::plan(const planning_interface::MotionPlanRequest& 
   moveit_msgs::MoveItErrorCodes error_code;
   // sample the Cartesian trajectory and compute joint trajectory using inverse
   // kinematics
-  if (!generateJointTrajectory(robot_model_, planner_limits_.getJointLimitContainer(), cart_trajectory,
+  if (!generateJointTrajectory(scene, robot_model_, planner_limits_.getJointLimitContainer(), cart_trajectory,
                                plan_info.group_name, plan_info.link_name, plan_info.start_joint_position, sampling_time,
                                joint_trajectory, error_code))
   {

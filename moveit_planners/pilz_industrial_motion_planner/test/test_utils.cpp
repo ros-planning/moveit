@@ -1040,6 +1040,9 @@ bool testutils::generateTrajFromBlendTestData(
     const double& sampling_time_2, planning_interface::MotionPlanResponse& res_1,
     planning_interface::MotionPlanResponse& res_2, double& dis_1, double& dis_2)
 {
+  // generate default planning scene
+  const planning_scene::PlanningSceneConstPtr scene(new planning_scene::PlanningScene(robot_model));;
+
   // generate first trajectory
   planning_interface::MotionPlanRequest req_1;
   req_1.group_name = group_name;
@@ -1058,7 +1061,7 @@ bool testutils::generateTrajFromBlendTestData(
       goal_state_1, goal_state_1.getRobotModel()->getJointModelGroup(group_name)));
 
   // trajectory generation
-  if (!tg->generate(req_1, res_1, sampling_time_1))
+  if (!tg->generate(scene, req_1, res_1, sampling_time_1))
   {
     std::cout << "Failed to generate first trajectory." << std::endl;
     return false;
@@ -1078,7 +1081,7 @@ bool testutils::generateTrajFromBlendTestData(
   req_2.goal_constraints.push_back(kinematic_constraints::constructGoalConstraints(
       goal_state_2, goal_state_2.getRobotModel()->getJointModelGroup(group_name)));
   // trajectory generation
-  if (!tg->generate(req_2, res_2, sampling_time_2))
+  if (!tg->generate(scene, req_2, res_2, sampling_time_2))
   {
     std::cout << "Failed to generate second trajectory." << std::endl;
     return false;

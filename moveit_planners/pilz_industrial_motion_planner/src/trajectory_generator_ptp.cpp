@@ -212,7 +212,8 @@ void TrajectoryGeneratorPTP::planPTP(const std::map<std::string, double>& start_
             0.0);
 }
 
-void TrajectoryGeneratorPTP::extractMotionPlanInfo(const planning_interface::MotionPlanRequest& req,
+void TrajectoryGeneratorPTP::extractMotionPlanInfo(const planning_scene::PlanningSceneConstPtr& scene,
+                                                   const planning_interface::MotionPlanRequest& req,
                                                    MotionPlanInfo& info) const
 {
   info.group_name = req.group_name;
@@ -248,15 +249,17 @@ void TrajectoryGeneratorPTP::extractMotionPlanInfo(const planning_interface::Mot
     Eigen::Isometry3d pose_eigen;
     normalizeQuaternion(pose.orientation);
     tf2::fromMsg(pose, pose_eigen);
-    if (!computePoseIK(robot_model_, req.group_name, req.goal_constraints.at(0).position_constraints.at(0).link_name,
-                       pose_eigen, robot_model_->getModelFrame(), info.start_joint_position, info.goal_joint_position))
+    if (!computePoseIK(scene, robot_model_, req.group_name,
+                       req.goal_constraints.at(0).position_constraints.at(0).link_name, pose_eigen,
+                       robot_model_->getModelFrame(), info.start_joint_position, info.goal_joint_position))
     {
       throw PtpNoIkSolutionForGoalPose("No IK solution for goal pose");
     }
   }
 }
 
-void TrajectoryGeneratorPTP::plan(const planning_interface::MotionPlanRequest& req, const MotionPlanInfo& plan_info,
+void TrajectoryGeneratorPTP::plan(const planning_scene::PlanningSceneConstPtr& scene,
+                                  const planning_interface::MotionPlanRequest& req, const MotionPlanInfo& plan_info,
                                   const double& sampling_time, trajectory_msgs::JointTrajectory& joint_trajectory)
 {
   // plan the ptp trajectory
