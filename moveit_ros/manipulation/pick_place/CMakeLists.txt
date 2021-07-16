@@ -11,7 +11,7 @@ add_library(${MOVEIT_LIB_NAME}
   src/place.cpp
   )
 set_target_properties(${MOVEIT_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
-
+add_dependencies(${MOVEIT_LIB_NAME} ${PROJECT_NAME}_gencfg) # don't build before DynamicReconfigureConfig.h exists
 target_link_libraries(${MOVEIT_LIB_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 install(TARGETS ${MOVEIT_LIB_NAME}

@@ -10,6 +10,7 @@ target_link_libraries(${MOVEIT_LIB_NAME}
   moveit_planning_scene_monitor
   ${catkin_LIBRARIES} ${Boost_LIBRARIES}
   )
+add_dependencies(${MOVEIT_LIB_NAME} ${PROJECT_NAME}_gencfg) # don't build before DynamicReconfigureConfig.h exists
 
 install(TARGETS ${MOVEIT_LIB_NAME}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
