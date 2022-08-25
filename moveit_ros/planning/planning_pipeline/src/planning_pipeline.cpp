@@ -38,6 +38,7 @@
 #include <moveit/robot_state/conversions.h>
 #include <moveit/collision_detection/collision_tools.h>
 #include <moveit/trajectory_processing/trajectory_tools.h>
+#include <moveit/kinematic_constraints/utils.h>
 #include <moveit_msgs/DisplayTrajectory.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <boost/tokenizer.hpp>
@@ -230,12 +231,19 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
     return false;
   }
 
+  // resolve constraint frames
+  planning_interface::MotionPlanRequest modified_req = req;
+  kinematic_constraints::resolveConstraintFrames(planning_scene->getCurrentState(), modified_req.path_constraints);
+  for (moveit_msgs::Constraints& constraint : modified_req.goal_constraints)
+    kinematic_constraints::resolveConstraintFrames(planning_scene->getCurrentState(), constraint);
+
   bool solved = false;
   try
   {
     if (adapter_chain_)
     {
-      solved = adapter_chain_->adaptAndPlan(planner_instance_, planning_scene, req, res, adapter_added_state_index);
+      solved =
+          adapter_chain_->adaptAndPlan(planner_instance_, planning_scene, modified_req, res, adapter_added_state_index);
       if (!adapter_added_state_index.empty())
       {
         std::stringstream ss;
@@ -270,7 +278,8 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
       arr.markers.push_back(m);
 
       std::vector<std::size_t> index;
-      if (!planning_scene->isPathValid(*res.trajectory_, req.path_constraints, req.group_name, false, &index))
+      if (!planning_scene->isPathValid(*res.trajectory_, modified_req.path_constraints, modified_req.group_name, false,
+                                       &index))
       {
         // check to see if there is any problem with the states that are found to be invalid
         // they are considered ok if they were added by a planning request adapter
@@ -310,7 +319,7 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
             {
               // check validity with verbose on
               const moveit::core::RobotState& robot_state = res.trajectory_->getWayPoint(it);
-              planning_scene->isStateValid(robot_state, req.path_constraints, req.group_name, true);
+              planning_scene->isStateValid(robot_state, modified_req.path_constraints, modified_req.group_name, true);
 
               // compute the contacts if any
               collision_detection::CollisionRequest c_req;
