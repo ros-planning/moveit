@@ -49,6 +49,13 @@ namespace python
 PYBIND11_EXPORT pybind11::object createMessage(const std::string& ros_msg_name);
 PYBIND11_EXPORT bool convertible(const pybind11::handle& h, const char* ros_msg_name);
 
+/** Throws genpy.DeserializationError exception.
+ *
+ * This is a convenience method to support the old behaviour of returning
+ * an empty ByteString.
+ */
+PYBIND11_EXPORT void throwDeserializationError [[noreturn]] ();
+
 }  // namespace python
 }  // namespace moveit
 
@@ -95,9 +102,9 @@ struct type_caster<ros::WallDuration> : DurationCaster<ros::WallDuration>
 {
 };
 
-/// Convert ROS message types (C++ <-> python)
+/// Base class for type conversion (C++ <-> python) of ROS message types
 template <typename T>
-struct type_caster<T, enable_if_t<ros::message_traits::IsMessage<T>::value>>
+struct RosMsgTypeCaster
 {
   // C++ -> Python
   static handle cast(const T& src, return_value_policy /* policy */, handle /* parent */)
@@ -133,5 +140,11 @@ struct type_caster<T, enable_if_t<ros::message_traits::IsMessage<T>::value>>
 
   PYBIND11_TYPE_CASTER(T, _<T>());
 };
+
+template <typename T>
+struct type_caster<T, enable_if_t<ros::message_traits::IsMessage<T>::value>> : RosMsgTypeCaster<T>
+{
+};
+
 }  // namespace detail
 }  // namespace pybind11

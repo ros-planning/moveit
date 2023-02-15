@@ -22,7 +22,7 @@
    needs ros::init() to have been called, there is an error, because
    even if rospy is initialized, roscpp is not.
    @par Solutions
-   We can update class FooWrapper using the moveit_py_bindings_tools::ROScppInitializer class
+   We can update class FooWrapper using the moveit::py_bindings_tools::ROScppInitializer class
    like so:
    \code
    class FooWrapper : protected ROScppInitializer

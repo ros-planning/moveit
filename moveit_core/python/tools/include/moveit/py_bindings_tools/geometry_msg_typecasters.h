@@ -34,36 +34,32 @@
 
 /* Author: Robert Haschke */
 
-#include <moveit/python/pybind_rosmsg_typecasters.h>
+#pragma once
 
-namespace py = pybind11;
-namespace moveit
-{
-namespace python
-{
-py::object createMessage(const std::string& ros_msg_name)
-{
-  // find delimiting '/' in ros msg name
-  std::size_t pos = ros_msg_name.find('/');
-  // import module
-  py::module m = py::module::import((ros_msg_name.substr(0, pos) + ".msg").c_str());
-  // retrieve type instance
-  py::object cls = m.attr(ros_msg_name.substr(pos + 1).c_str());
-  // create message instance
-  return cls();
-}
+#include "ros_msg_typecasters.h"
+#include <geometry_msgs/PoseStamped.h>
 
-bool convertible(const pybind11::handle& h, const char* ros_msg_name)
+namespace pybind11
 {
-  try
+namespace detail
+{
+/** Convienency type caster, also allowing to initialize PoseStamped from a string */
+template <>
+struct type_caster<geometry_msgs::PoseStamped> : RosMsgTypeCaster<geometry_msgs::PoseStamped>
+{
+  // Python -> C++
+  bool load(handle src, bool convert)
   {
-    PyObject* o = h.attr("_type").ptr();
-    return py::cast<std::string>(o) == ros_msg_name;
+    type_caster<std::string> str_caster;
+    if (convert && str_caster.load(src, false))
+    {  // string creates identity pose with given frame
+      value.header.frame_id = static_cast<std::string&>(str_caster);
+      value.pose.orientation.w = 1.0;
+      return true;
+    }
+    return RosMsgTypeCaster<geometry_msgs::PoseStamped>::load(src, convert);
   }
-  catch (const std::exception& e)
-  {
-    return false;
-  }
-}
-}  // namespace python
-}  // namespace moveit
+};
+
+}  // namespace detail
+}  // namespace pybind11

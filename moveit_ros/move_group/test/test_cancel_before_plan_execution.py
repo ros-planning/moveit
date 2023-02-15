@@ -20,7 +20,6 @@ class TestMoveActionCancelDrop(unittest.TestCase):
         self._move_client = SimpleActionClient("move_group", MoveGroupAction)
         self._move_client.wait_for_server()
 
-        moveit_commander.roscpp_initialize(sys.argv)
         group_name = moveit_commander.RobotCommander().get_group_names()[0]
         group = moveit_commander.MoveGroupCommander(group_name)
 

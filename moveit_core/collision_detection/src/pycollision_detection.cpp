@@ -40,7 +40,7 @@
 #include <moveit/collision_detection/world.h>
 #include <moveit/collision_detection/collision_matrix.h>
 #include <moveit/collision_detection/collision_common.h>
-#include <moveit/python/pybind_rosmsg_typecasters.h>
+#include <moveit/py_bindings_tools/ros_msg_typecasters.h>
 
 namespace py = pybind11;
 

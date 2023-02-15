@@ -1,7 +1,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2020, RWTH Aachen University
+ *  Copyright (c) 2020, Bielefeld University
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of RWTH Aachen University nor the names of its
+ *   * Neither the name of Bielefeld University nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -31,66 +31,30 @@
  *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
-
-/* Author: Bjarne von Horn */
-
 #pragma once
 
-#include <utility>
-#include <Python.h>
+#include <ros/init.h>
 
 namespace moveit
 {
 namespace py_bindings_tools
 {
-/** \brief RAII Helper to release the Global Interpreter Lock (GIL)
+/** The constructor of this class ensures that ros::init() has been called.
  *
- * Use this helper class to release the GIL before doing long computations
- * or blocking calls. Note that without the GIL Python-related functions <b>must not</b> be called.
- * So, before releasing the GIL all \c boost::python variables have to be converted to e.g. \c std::vector<std::string>.
- * Before converting the result back to e.g. a moveit::py_bindings_tools::ByteString instance, the GIL has to be
- * reacquired.
- */
-class GILReleaser
+ *  Thread safety and multiple initialization is properly handled.
+ *  When the process terminates, ros::shutdown() is called, if needed. */
+class ROScppInitializer
 {
-  PyThreadState* m_thread_state;
-
 public:
-  /** \brief Release the GIL on construction  */
-  GILReleaser() noexcept
-  {
-    m_thread_state = PyEval_SaveThread();
-  }
-  /** \brief Reacquire the GIL on destruction  */
-  ~GILReleaser() noexcept
-  {
-    if (m_thread_state)
-    {
-      PyEval_RestoreThread(m_thread_state);
-      m_thread_state = nullptr;
-    }
-  }
-
-  GILReleaser(const GILReleaser&) = delete;
-  GILReleaser(GILReleaser&& other) noexcept
-  {
-    m_thread_state = other.m_thread_state;
-    other.m_thread_state = nullptr;
-  }
-
-  GILReleaser& operator=(const GILReleaser&) = delete;
-  GILReleaser& operator=(GILReleaser&& other) noexcept
-  {
-    GILReleaser copy(std::move(other));
-    this->swap(copy);
-    return *this;
-  }
-
-  void swap(GILReleaser& other) noexcept
-  {
-    std::swap(other.m_thread_state, m_thread_state);
-  }
+  ROScppInitializer();
+  ~ROScppInitializer();
 };
+
+void roscpp_init(const std::string& node_name = "moveit_python_wrappers",
+                 const std::map<std::string, std::string>& remappings = std::map<std::string, std::string>(),
+                 uint32_t options = ros::init_options::AnonymousName);
+
+void roscpp_shutdown();
 
 }  // namespace py_bindings_tools
 }  // namespace moveit

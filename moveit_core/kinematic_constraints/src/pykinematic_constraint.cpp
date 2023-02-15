@@ -38,7 +38,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
-#include <moveit/python/pybind_rosmsg_typecasters.h>
+#include <moveit/py_bindings_tools/ros_msg_typecasters.h>
 
 #include <moveit/kinematic_constraints/kinematic_constraint.h>
 #include <moveit/kinematic_constraints/utils.h>

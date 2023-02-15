@@ -38,7 +38,7 @@
 #include <pybind11/stl.h>
 #include <moveit/robot_model/robot_model.h>
 #include <urdf_model/model.h>
-#include <moveit/python/pybind_rosmsg_typecasters.h>
+#include <moveit/py_bindings_tools/ros_msg_typecasters.h>
 
 namespace py = pybind11;
 using namespace robot_model;
@@ -46,18 +46,36 @@ using namespace robot_model;
 void def_robot_model_bindings(py::module& m)
 {
   m.doc() = "Definition of a kinematic model. Not thread safe, however multiple instances can be created.";
+  py::class_<JointModelGroup, JointModelGroupPtr>(m, "JointModelGroup")
+      .def("get_link_model_names", &JointModelGroup::getLinkModelNames)
+      .def("get_joint_model_names", &JointModelGroup::getJointModelNames)
+      .def("get_active_joint_model_names", &JointModelGroup::getActiveJointModelNames)
+      .def("get_default_state_names", &JointModelGroup::getDefaultStateNames)
+      .def("get_end_effector_tips",
+           [](const JointModelGroup& self) {
+             std::vector<std::string> tips;
+             self.getEndEffectorTips(tips);
+             return tips;
+           })
+      // keep semicolon on next line
+      ;
+
   py::class_<RobotModel, RobotModelPtr>(m, "RobotModel")
       .def(py::init<const urdf::ModelInterfaceSharedPtr&, const srdf::ModelConstSharedPtr&>(), py::arg("urdf_model"),
            py::arg("srdf_model"))
-      .def("getName", &RobotModel::getName)
-      .def("getLinkModelNames", &RobotModel::getLinkModelNames)
-      .def("getJointModelNames", &RobotModel::getJointModelNames)
-      //
-      ;
+      .def("get_name", &RobotModel::getName)
+      .def("get_model_frame", &RobotModel::getModelFrame)
+      .def("get_joint_model_group_names", &RobotModel::getJointModelGroupNames)
+      .def("get_joint_model_group", py::overload_cast<const std::string&>(&RobotModel::getJointModelGroup, py::const_),
+           py::return_value_policy::reference_internal, py::arg("group"))
+      .def("get_link_model_names", &RobotModel::getLinkModelNames)
+      .def("get_joint_model_names", &RobotModel::getJointModelNames)
+      .def("get_active_joint_model_names", &RobotModel::getActiveJointModelNames)
 
-  py::class_<JointModelGroup, JointModelGroupPtr>(m, "JointModelGroup")
-      .def("getLinkModelNames", &JointModelGroup::getLinkModelNames)
-      .def("getJointModelNames", &JointModelGroup::getJointModelNames)
-      //
+      .def("get_planning_frame", &RobotModel::getModelFrame)
+      .def("get_robot_root_link", &RobotModel::getRootLinkName)
+      .def("has_group", &RobotModel::hasJointModelGroup, py::arg("group"))
+      .def("get_robot_name", &RobotModel::getName)
+      // keep semicolon on next line
       ;
 }

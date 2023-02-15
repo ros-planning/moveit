@@ -86,12 +86,11 @@ static void expect_near(const Eigen::MatrixXd& x, const Eigen::MatrixXd& y,
       EXPECT_NEAR(x(r, c), y(r, c), eps) << "(r,c) = (" << r << "," << c << ")";
 }
 
-// clang-format off
-#define EXPECT_NEAR_TRACED(...) {                 \
-	SCOPED_TRACE("expect_near(" #__VA_ARGS__ ")"); \
-	expect_near(__VA_ARGS__);                      \
-}
-// clang-format on
+#define EXPECT_NEAR_TRACED(...)                                                                                        \
+  {                                                                                                                    \
+    SCOPED_TRACE("expect_near(" #__VA_ARGS__ ")");                                                                     \
+    expect_near(__VA_ARGS__);                                                                                          \
+  }
 
 TEST(Loading, SimpleRobot)
 {

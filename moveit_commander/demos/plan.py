@@ -36,12 +36,11 @@
 
 import sys
 import rospy
-from moveit_commander import RobotCommander, roscpp_initialize, roscpp_shutdown
+from moveit_commander import RobotCommander
 from moveit_msgs.msg import RobotState
 
 if __name__ == "__main__":
 
-    roscpp_initialize(sys.argv)
     rospy.init_node("moveit_py_demo", anonymous=True)
 
     robot = RobotCommander()
@@ -59,5 +58,3 @@ if __name__ == "__main__":
     p = a.plan(r)
     print("Solution:")
     print(p)
-
-    roscpp_shutdown()

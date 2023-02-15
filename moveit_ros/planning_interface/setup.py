@@ -1,9 +1,8 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from catkin_pkg.python_setup import generate_distutils_setup
 
-d = generate_distutils_setup()
-d["packages"] = ["moveit_ros_planning_interface"]
-d["scripts"] = []
-d["package_dir"] = {"": "python"}
+packages = find_packages("python/src")
+
+d = generate_distutils_setup(packages=packages, package_dir={"": "python/src"})
 
 setup(**d)

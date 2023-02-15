@@ -40,7 +40,8 @@ import genpy
 import numpy as np
 import rospy
 import rostest
-import os
+from rosgraph.names import ns_join
+
 
 from moveit_msgs.msg import RobotState
 from sensor_msgs.msg import JointState
@@ -54,18 +55,13 @@ from moveit_commander import (
 
 class PythonMoveitCommanderTest(unittest.TestCase):
     PLANNING_GROUP = "manipulator"
-    JOINT_NAMES = [
-        "joint_1",
-        "joint_2",
-        "joint_3",
-        "joint_4",
-        "joint_5",
-        "joint_6",
-    ]
+    JOINT_NAMES = ["joint_{}".format(i + 1) for i in range(6)]
 
     @classmethod
     def setUpClass(self):
-        self.commander = RobotCommander("robot_description")
+        self.commander = RobotCommander(
+            ns_join(PLANNING_NS, "robot_description"), PLANNING_NS
+        )
         self.group = self.commander.get_group(self.PLANNING_GROUP)
 
     @classmethod
@@ -73,29 +69,21 @@ class PythonMoveitCommanderTest(unittest.TestCase):
         pass
 
     def test_enforce_bounds_empty_state(self):
-        in_msg = RobotState()
+        empty_state = RobotState()
         with self.assertRaises(genpy.DeserializationError):
-            self.group.enforce_bounds(in_msg)
+            self.group.enforce_bounds(empty_state)
 
     def test_enforce_bounds(self):
-        in_msg = RobotState()
-        in_msg.joint_state.header.frame_id = "base_link"
-        in_msg.joint_state.name = self.JOINT_NAMES
-        in_msg.joint_state.position = [0] * 6
-        in_msg.joint_state.position[0] = 1000
+        state = RobotState()
+        state.joint_state.header.frame_id = "base_link"
+        state.joint_state.name = self.JOINT_NAMES
+        state.joint_state.position = [0] * 6
+        state.joint_state.position[0] = 1000
 
-        out_msg = self.group.enforce_bounds(in_msg)
+        result = self.group.enforce_bounds(state)
 
-        self.assertEqual(in_msg.joint_state.position[0], 1000)
-        self.assertLess(out_msg.joint_state.position[0], 1000)
-
-    def test_get_current_state(self):
-        expected_state = RobotState()
-        expected_state.joint_state.header.frame_id = "base_link"
-        expected_state.multi_dof_joint_state.header.frame_id = "base_link"
-        expected_state.joint_state.name = self.JOINT_NAMES
-        expected_state.joint_state.position = [0] * 6
-        self.assertEqual(self.group.get_current_state(), expected_state)
+        self.assertEqual(state.joint_state.position[0], 1000)
+        self.assertLess(result.joint_state.position[0], 1000)
 
     def check_target_setting(self, expect, *args):
         if len(args) == 0:
@@ -172,15 +160,27 @@ class PythonMoveitCommanderTest(unittest.TestCase):
         current_pose = self.group.get_current_pose()
         self.assertTrue(self.group.go(current_pose))
 
+
+# get_current_state() cannot find /get_planning_scene service w/o namespace!
+class PythonMoveitCommanderNoNamespaceTest(PythonMoveitCommanderTest):
+    def test_get_current_state(self):
+        expected_state = RobotState()
+        expected_state.joint_state.header.frame_id = "base_link"
+        expected_state.multi_dof_joint_state.header.frame_id = "base_link"
+        expected_state.joint_state.name = self.JOINT_NAMES
+        expected_state.joint_state.position = [0] * 6
+        self.assertEqual(self.group.get_current_state(), expected_state)
+
     def test_planning_scene_interface(self):
-        planning_scene = PlanningSceneInterface()
+        PlanningSceneInterface()
 
 
 if __name__ == "__main__":
     PKGNAME = "moveit_ros_planning_interface"
     NODENAME = "moveit_test_python_moveit_commander"
     rospy.init_node(NODENAME)
-    rostest.rosrun(PKGNAME, NODENAME, PythonMoveitCommanderTest)
-
-    # suppress cleanup segfault
-    os._exit(0)
+    PLANNING_NS = rospy.get_param("~PLANNING_NS", "")
+    if PLANNING_NS:
+        rostest.rosrun(PKGNAME, NODENAME, PythonMoveitCommanderTest)
+    else:
+        rostest.rosrun(PKGNAME, NODENAME, PythonMoveitCommanderNoNamespaceTest)

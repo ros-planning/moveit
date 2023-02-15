@@ -38,11 +38,8 @@
 
 from __future__ import print_function
 
-import xml.dom.minidom
-from operator import add
-import sys
 import threading
-from moveit_ros_planning_interface._moveit_robot_interface import RobotInterface
+from moveit.planning_interface import RobotInterface
 
 import rospy
 import roslib

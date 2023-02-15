@@ -34,18 +34,20 @@
 
 /* Author: Ioan Sucan */
 
+#ifndef PY_SSIZE_T_CLEAN
+#define PY_SSIZE_T_CLEAN
+#endif
+
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit/py_bindings_tools/roscpp_initializer.h>
-#include <moveit/py_bindings_tools/py_conversions.h>
-#include <moveit/py_bindings_tools/serialize_msg.h>
+#include <moveit/py_bindings_tools/ros_msg_typecasters.h>
 
-#include <boost/function.hpp>
-#include <boost/python.hpp>
-#include <Python.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 /** @cond IGNORE */
 
-namespace bp = boost::python;
+namespace py = pybind11;
 
 namespace moveit
 {
@@ -59,79 +61,31 @@ public:
     : py_bindings_tools::ROScppInitializer(), PlanningSceneInterface(ns)
   {
   }
-
-  bp::list getKnownObjectNamesPython(bool with_type = false)
-  {
-    return py_bindings_tools::listFromString(getKnownObjectNames(with_type));
-  }
-
-  bp::list getKnownObjectNamesInROIPython(double minx, double miny, double minz, double maxx, double maxy, double maxz,
-                                          bool with_type = false)
-  {
-    return py_bindings_tools::listFromString(getKnownObjectNamesInROI(minx, miny, minz, maxx, maxy, maxz, with_type));
-  }
-
-  bp::dict getObjectPosesPython(const bp::list& object_ids)
-  {
-    std::map<std::string, geometry_msgs::Pose> ops = getObjectPoses(py_bindings_tools::stringFromList(object_ids));
-    std::map<std::string, py_bindings_tools::ByteString> ser_ops;
-    for (std::map<std::string, geometry_msgs::Pose>::const_iterator it = ops.begin(); it != ops.end(); ++it)
-      ser_ops[it->first] = py_bindings_tools::serializeMsg(it->second);
-
-    return py_bindings_tools::dictFromType(ser_ops);
-  }
-
-  bp::dict getObjectsPython(const bp::list& object_ids)
-  {
-    std::map<std::string, moveit_msgs::CollisionObject> objs =
-        getObjects(py_bindings_tools::stringFromList(object_ids));
-    std::map<std::string, py_bindings_tools::ByteString> ser_objs;
-    for (std::map<std::string, moveit_msgs::CollisionObject>::const_iterator it = objs.begin(); it != objs.end(); ++it)
-      ser_objs[it->first] = py_bindings_tools::serializeMsg(it->second);
-
-    return py_bindings_tools::dictFromType(ser_objs);
-  }
-
-  bp::dict getAttachedObjectsPython(const bp::list& object_ids)
-  {
-    std::map<std::string, moveit_msgs::AttachedCollisionObject> aobjs =
-        getAttachedObjects(py_bindings_tools::stringFromList(object_ids));
-    std::map<std::string, py_bindings_tools::ByteString> ser_aobjs;
-    for (std::map<std::string, moveit_msgs::AttachedCollisionObject>::const_iterator it = aobjs.begin();
-         it != aobjs.end(); ++it)
-      ser_aobjs[it->first] = py_bindings_tools::serializeMsg(it->second);
-
-    return py_bindings_tools::dictFromType(ser_aobjs);
-  }
-
-  bool applyPlanningScenePython(const py_bindings_tools::ByteString& ps_str)
-  {
-    moveit_msgs::PlanningScene ps_msg;
-    py_bindings_tools::deserializeMsg(ps_str, ps_msg);
-    return applyPlanningScene(ps_msg);
-  }
 };
-
-static void wrap_planning_scene_interface()
-{
-  bp::class_<PlanningSceneInterfaceWrapper> planning_scene_class("PlanningSceneInterface",
-                                                                 bp::init<bp::optional<std::string>>());
-
-  planning_scene_class.def("get_known_object_names", &PlanningSceneInterfaceWrapper::getKnownObjectNamesPython);
-  planning_scene_class.def("get_known_object_names_in_roi",
-                           &PlanningSceneInterfaceWrapper::getKnownObjectNamesInROIPython);
-  planning_scene_class.def("get_object_poses", &PlanningSceneInterfaceWrapper::getObjectPosesPython);
-  planning_scene_class.def("get_objects", &PlanningSceneInterfaceWrapper::getObjectsPython);
-  planning_scene_class.def("get_attached_objects", &PlanningSceneInterfaceWrapper::getAttachedObjectsPython);
-  planning_scene_class.def("apply_planning_scene", &PlanningSceneInterfaceWrapper::applyPlanningScenePython);
-}
 }  // namespace planning_interface
 }  // namespace moveit
 
-BOOST_PYTHON_MODULE(_moveit_planning_scene_interface)
+PYBIND11_MODULE(pymoveit_planning_scene_interface, m)
 {
-  using namespace moveit::planning_interface;
-  wrap_planning_scene_interface();
+  using moveit::planning_interface::PlanningSceneInterface;
+  using moveit::planning_interface::PlanningSceneInterfaceWrapper;
+
+  py::class_<PlanningSceneInterfaceWrapper>(m, "PlanningSceneInterface")
+      .def(py::init<std::string>(), py::arg("namespace") = std::string(""))
+
+      .def("get_known_object_names", &PlanningSceneInterface::getKnownObjectNames, py::arg("with_type") = false)
+      .def("get_known_object_names_in_roi",
+           py::overload_cast<double, double, double, double, double, double, bool>(
+               &PlanningSceneInterface::getKnownObjectNamesInROI),
+           py::arg("minx"), py::arg("miny"), py::arg("minz"), py::arg("maxx"), py::arg("maxy"), py::arg("maxz"),
+           py::arg("with_type") = false)
+      .def("get_object_poses", &PlanningSceneInterface::getObjectPoses, py::arg("object_ids"))
+      .def("get_objects", &PlanningSceneInterface::getObjects, py::arg("object_ids") = std::vector<std::string>{})
+      .def("get_attached_objects", &PlanningSceneInterface::getAttachedObjects,
+           py::arg("object_ids") = std::vector<std::string>{})
+      .def("apply_planning_scene", &PlanningSceneInterface::applyPlanningScene, py::arg("planning_scene"))
+      // keep semicolon on next line
+      ;
 }
 
 /** @endcond */

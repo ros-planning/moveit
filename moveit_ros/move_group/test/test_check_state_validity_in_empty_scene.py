@@ -11,7 +11,6 @@ from moveit_msgs.srv import GetStateValidity
 
 class TestCheckStateValidityInEmptyScene(unittest.TestCase):
     def setUp(self):
-        moveit_commander.roscpp_initialize(sys.argv)
         self.robot_commander = moveit_commander.RobotCommander()
         self.group_name = self.robot_commander.get_group_names()[0]
         self.group_commander = moveit_commander.MoveGroupCommander(self.group_name)

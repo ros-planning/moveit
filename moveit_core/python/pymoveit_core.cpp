@@ -37,6 +37,7 @@
 #include <pybind11/pybind11.h>
 #include <urdf_parser/urdf_parser.h>
 #include <moveit/robot_model/robot_model.h>
+#include <moveit/utils/moveit_error_code.h>
 #include <srdfdom/model.h>
 
 namespace py = pybind11;
@@ -65,6 +66,11 @@ auto load_robot_model(const std::string& urdf_path, const std::string& srdf_path
 
 PYBIND11_MODULE(pymoveit_core, m)
 {
+  py::class_<moveit::core::MoveItErrorCode>(m, "MoveItErrorCode")
+      .def_readonly("val", &moveit::core::MoveItErrorCode::val)
+      .def(PYBIND11_BOOL_ATTR,
+           [](const moveit::core::MoveItErrorCode& err) { return pybind11::cast(static_cast<bool>(err)); });
+
   auto collision_detection_m = m.def_submodule("collision_detection");
   auto planning_scene_m = m.def_submodule("planning_scene");
   auto robot_model_m = m.def_submodule("robot_model");

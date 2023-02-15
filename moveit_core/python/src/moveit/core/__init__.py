@@ -1,5 +1,5 @@
 # load symbols from C++ extension lib
-from pymoveit_core import load_robot_model
+from pymoveit_core import load_robot_model, MoveItErrorCode
 
 # and augment with symbols from python modules (order is important to allow overriding!)
 from . import (

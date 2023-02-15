@@ -1,7 +1,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2012, Willow Garage, Inc.
+ *  Copyright (c) 2020, Bielefeld University
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of Willow Garage nor the names of its
+ *   * Neither the name of Bielefeld University nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -32,43 +32,23 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* Author: Ioan Sucan */
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <ros/init.h>
+#include <moveit/py_bindings_tools/roscpp_initializer.h>
 
-#pragma once
+namespace py = pybind11;
+using namespace moveit::py_bindings_tools;
 
-#include <boost/python.hpp>
-#include <string>
-
-namespace moveit
+PYBIND11_MODULE(pymoveit_tools, m)
 {
-/** \brief Tools for creating python bindings for MoveIt */
-namespace py_bindings_tools
-{
-/** \brief The constructor of this class ensures that ros::init() has
-    been called.  Thread safety and multiple initialization is
-    properly handled. When the process terminates, ros::shotdown() is
-    also called, if needed. */
-class ROScppInitializer
-{
-public:
-  ROScppInitializer();
-  ROScppInitializer(boost::python::list& argv);
-  ROScppInitializer(const std::string& node_name, boost::python::list& argv);
-};
+  m.doc() = "MoveIt python tools";
 
-/** \brief This function can be used to specify the ROS command line arguments for the internal ROScpp instance;
-    Usually this function would also be exposed in the py module that uses ROScppInitializer. */
-void roscpp_set_arguments(const std::string& node_name, boost::python::list& argv);
+  m.def("roscpp_init", &roscpp_init, "Initialize C++ ROS", py::arg("node_name") = "moveit_python_wrappers",
+        py::arg("remappings") = std::map<std::string, std::string>(), py::arg("options") = 0);
+  m.def("roscpp_shutdown", &roscpp_shutdown, "Shutdown C++ ROS");
 
-/** \brief Initialize ROScpp with specified command line args */
-void roscpp_init(const std::string& node_name, boost::python::list& argv);
-
-/** \brief Initialize ROScpp with specified command line args */
-void roscpp_init(boost::python::list& argv);
-
-/** \brief Initialize ROScpp with default command line args */
-void roscpp_init();
-
-void roscpp_shutdown();
-}  // namespace py_bindings_tools
-}  // namespace moveit
+  py::enum_<ros::InitOption>(m, "InitOption")
+      .value("AnonymousName", ros::init_options::AnonymousName)
+      .value("NoRosout", ros::init_options::NoRosout);
+}

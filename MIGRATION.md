@@ -35,6 +35,10 @@ API changes in MoveIt releases
   You might need to define additional end-effectors.
 - Removed `ConstraintSampler::project()` as there was no real difference to `sample()`.
 - Removed `TrajectoryExecutionManager::pushAndExecute()` and the code associated to it. The code was unused and broken.
+- Thoroughly reworked Python API
+  - Migrated C++ wrapper to pybind11, renaming libs to pymoveit_*.so
+  - Moved `py_bindings_tools` from `moveit_ros_planning_interface` to `moveit_core`
+  - New package naming scheme: moveit.[core|planning_interface]
 
 ## ROS Melodic
 

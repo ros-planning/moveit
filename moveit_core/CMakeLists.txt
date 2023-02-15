@@ -147,7 +147,7 @@ catkin_package(
     moveit_constraint_samplers
     moveit_planning_request_adapter
     moveit_profiler
-    moveit_python_tools
+    moveit_python_bindings_tools
     moveit_trajectory_processing
     moveit_distance_field
     moveit_collision_distance_field
@@ -235,7 +235,6 @@ set(pymoveit_libs
   moveit_collision_detection
   moveit_kinematic_constraints
   moveit_planning_scene
-  moveit_python_tools
   moveit_robot_model
   moveit_robot_state
   moveit_transforms
@@ -251,7 +250,7 @@ pybind_add_module(pymoveit_core
     kinematic_constraints/src/pykinematic_constraint.cpp
 )
 target_include_directories(pymoveit_core SYSTEM PRIVATE ${catkin_INCLUDE_DIRS})
-target_link_libraries(pymoveit_core PRIVATE ${pymoveit_libs} ${catkin_LIBRARIES})
+target_link_libraries(pymoveit_core PRIVATE ${pymoveit_libs} moveit_python_bindings_tools ${catkin_LIBRARIES})
 
 #catkin_lint: ignore_once undefined_target (pymoveit_core is defined by pybind_add_module)
 install(TARGETS pymoveit_core LIBRARY DESTINATION ${CATKIN_GLOBAL_PYTHON_DESTINATION})

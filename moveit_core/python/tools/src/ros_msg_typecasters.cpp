@@ -1,7 +1,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2012, Willow Garage, Inc.
+ *  Copyright (c) 2021, Robert Haschke
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -14,9 +14,9 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of Willow Garage nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
+ *   * The name of Robert Haschke may not be used to endorse or promote
+ *     products derived from this software without specific prior
+ *     written permission.
  *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -32,65 +32,45 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* Author: Ioan Sucan */
+/* Author: Robert Haschke */
 
-#pragma once
+#include <moveit/py_bindings_tools/ros_msg_typecasters.h>
 
-#include <boost/python.hpp>
-#include <boost/python/stl_iterator.hpp>
-#include <string>
-#include <vector>
-#include <map>
-
+namespace py = pybind11;
 namespace moveit
 {
-namespace py_bindings_tools
+namespace python
 {
-template <typename T>
-std::vector<T> typeFromList(const boost::python::object& values)
+py::object createMessage(const std::string& ros_msg_name)
 {
-  boost::python::stl_input_iterator<T> begin(values), end;
-  std::vector<T> v;
-  v.assign(begin, end);
-  return v;
+  // find delimiting '/' in ros msg name
+  std::size_t pos = ros_msg_name.find('/');
+  // import module
+  py::module m = py::module::import((ros_msg_name.substr(0, pos) + ".msg").c_str());
+  // retrieve type instance
+  py::object cls = m.attr(ros_msg_name.substr(pos + 1).c_str());
+  // create message instance
+  return cls();
 }
 
-template <typename T>
-boost::python::list listFromType(const std::vector<T>& v)
+bool convertible(const pybind11::handle& h, const char* ros_msg_name)
 {
-  boost::python::list l;
-  for (std::size_t i = 0; i < v.size(); ++i)
-    l.append(v[i]);
-  return l;
+  try
+  {
+    PyObject* o = h.attr("_type").ptr();
+    return py::cast<std::string>(o) == ros_msg_name;
+  }
+  catch (const std::exception& e)
+  {
+    return false;
+  }
 }
 
-template <typename T>
-boost::python::dict dictFromType(const std::map<std::string, T>& v)
+void throwDeserializationError()
 {
-  boost::python::dict d;
-  for (typename std::map<std::string, T>::const_iterator it = v.begin(); it != v.end(); ++it)
-    d[it->first] = it->second;
-  return d;
+  py::object e = py::module::import("genpy").attr("DeserializationError")();
+  PyErr_SetObject(e.get_type().ptr(), e.ptr());
+  throw py::error_already_set();
 }
-
-std::vector<double> doubleFromList(const boost::python::object& values)
-{
-  return typeFromList<double>(values);
-}
-
-std::vector<std::string> stringFromList(const boost::python::object& values)
-{
-  return typeFromList<std::string>(values);
-}
-
-boost::python::list listFromDouble(const std::vector<double>& v)
-{
-  return listFromType<double>(v);
-}
-
-boost::python::list listFromString(const std::vector<std::string>& v)
-{
-  return listFromType<std::string>(v);
-}
-}  // namespace py_bindings_tools
+}  // namespace python
 }  // namespace moveit

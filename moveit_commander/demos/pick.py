@@ -36,17 +36,11 @@
 
 import sys
 import rospy
-from moveit_commander import (
-    RobotCommander,
-    PlanningSceneInterface,
-    roscpp_initialize,
-    roscpp_shutdown,
-)
+from moveit_commander import RobotCommander, PlanningSceneInterface
 from geometry_msgs.msg import PoseStamped
 
 if __name__ == "__main__":
 
-    roscpp_initialize(sys.argv)
     rospy.init_node("moveit_py_demo", anonymous=True)
 
     scene = PlanningSceneInterface()
@@ -82,4 +76,3 @@ if __name__ == "__main__":
     robot.right_arm.pick("part")
 
     rospy.spin()
-    roscpp_shutdown()

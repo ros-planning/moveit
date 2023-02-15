@@ -1,5 +1,6 @@
 <launch>
   <include ns="test_ns" file="$(find moveit_resources_fanuc_moveit_config)/launch/test_environment.launch"/>
-  <test pkg="moveit_commander" type="python_moveit_commander_ns.py" test-name="python_moveit_commander_ns"
-        time-limit="300" args=""/>
+  <test pkg="moveit_commander" type="python_moveit_commander.py" test-name="python_moveit_commander_ns">
+    <param name="PLANNING_NS" value="test_ns" />
+  </test>
 </launch>
