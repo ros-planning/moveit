@@ -414,6 +414,8 @@ static bool constructConstraint(XmlRpc::XmlRpcValue& params, moveit_msgs::Orient
       constraint.weight = parseDouble(it->second);
     else if (it->first == "link_name")
       constraint.link_name = static_cast<std::string>(it->second);
+    else if (it->first == "parameterization")
+      constraint.parameterization = static_cast<int>(it->second);
     else if (it->first == "orientation")
     {
       if (!isArray(it->second, 3, it->first, "RPY values"))

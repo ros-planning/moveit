@@ -159,6 +159,7 @@ void computeDB(const planning_scene::PlanningScenePtr& scene, struct GenerateSta
  *    link_name: tool0
  *    orientation: [0, 0, 0]
  *    tolerances: [0.01, 0.01, 3.15]
+ *    parameterization: 0
  *    weight: 1.0
  * "
  */
