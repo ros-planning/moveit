@@ -535,14 +535,25 @@ bool KDLKinematicsPlugin::getPositionFK(const std::vector<std::string>& link_nam
     return false;
   }
 
-  KDL::Frame p_out;
+  std::vector<unsigned int> link_indices;
+
+  try{
+    link_indices = getLinkIndices(link_names);
+  }catch(const moveit::Exception & e)
+  {
+    ROS_ERROR_STREAM_NAMED("kdl", e.what());
+    return false;
+  }
+
   KDL::JntArray jnt_pos_in(dimension_);
   jnt_pos_in.data = Eigen::Map<const Eigen::VectorXd>(joint_angles.data(), joint_angles.size());
 
   bool valid = true;
   for (unsigned int i = 0; i < poses.size(); i++)
   {
-    if (fk_solver_->JntToCart(jnt_pos_in, p_out) >= 0)
+    KDL::Frame p_out;
+
+    if (fk_solver_->JntToCart(jnt_pos_in, p_out, link_indices[i]) >= 0)
     {
       poses[i] = tf2::toMsg(p_out);
     }
@@ -563,6 +574,29 @@ const std::vector<std::string>& KDLKinematicsPlugin::getJointNames() const
 const std::vector<std::string>& KDLKinematicsPlugin::getLinkNames() const
 {
   return solver_info_.link_names;
+}
+
+std::vector<unsigned int> KDLKinematicsPlugin::getLinkIndices(const std::vector<std::string> & link_names) const
+{
+  std::vector<std::string> all_links = joint_model_group_->getLinkModelNames();
+  std::vector<std::string>::iterator found_element;
+  std::vector<unsigned int> link_indices;
+
+  for(int i=0; i<link_names.size(); i++)
+  {
+    found_element = std::find(all_links.begin(), all_links.end(), link_names[i]);
+    
+    if(found_element != all_links.end())
+      link_indices.push_back(found_element - all_links.begin() + 1);
+    else
+    {
+      std::ostringstream message;
+      message << "Could not find link '" << link_names[i] << "' in the kinematic chain";
+      throw moveit::Exception(message.str());
+    }
+  }
+
+  return link_indices;
 }
 
 }  // namespace kdl_kinematics_plugin
