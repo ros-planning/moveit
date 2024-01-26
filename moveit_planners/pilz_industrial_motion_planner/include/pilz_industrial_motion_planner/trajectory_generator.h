@@ -158,7 +158,7 @@ private:
 
   virtual void plan(const planning_scene::PlanningSceneConstPtr& scene,
                     const planning_interface::MotionPlanRequest& req, const MotionPlanInfo& plan_info,
-                    const double& sampling_time, trajectory_msgs::JointTrajectory& joint_trajectory) = 0;
+                    double sampling_time, trajectory_msgs::JointTrajectory& joint_trajectory) = 0;
 
 private:
   /**

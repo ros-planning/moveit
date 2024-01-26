@@ -82,7 +82,7 @@ void TrajectoryGeneratorPTP::planPTP(const std::map<std::string, double>& start_
                                      const std::map<std::string, double>& goal_pos,
                                      trajectory_msgs::JointTrajectory& joint_trajectory,
                                      const double& velocity_scaling_factor, const double& acceleration_scaling_factor,
-                                     const double& sampling_time)
+                                     double sampling_time)
 {
   // initialize joint names
   for (const auto& item : goal_pos)
@@ -252,7 +252,7 @@ void TrajectoryGeneratorPTP::extractMotionPlanInfo(const planning_scene::Plannin
 
 void TrajectoryGeneratorPTP::plan(const planning_scene::PlanningSceneConstPtr& /*scene*/,
                                   const planning_interface::MotionPlanRequest& req, const MotionPlanInfo& plan_info,
-                                  const double& sampling_time, trajectory_msgs::JointTrajectory& joint_trajectory)
+                                  double sampling_time, trajectory_msgs::JointTrajectory& joint_trajectory)
 {
   // plan the ptp trajectory
   planPTP(plan_info.start_joint_position, plan_info.goal_joint_position, joint_trajectory,

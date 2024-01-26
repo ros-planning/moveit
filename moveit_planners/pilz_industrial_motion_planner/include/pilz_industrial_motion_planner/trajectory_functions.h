@@ -132,7 +132,7 @@ bool generateJointTrajectory(const planning_scene::PlanningSceneConstPtr& scene,
                              const JointLimitsContainer& joint_limits, const KDL::Trajectory& trajectory,
                              const std::string& group_name, const std::string& link_name,
                              const Eigen::Translation3d& offset,
-                             const std::map<std::string, double>& initial_joint_position, const double& sampling_time,
+                             const std::map<std::string, double>& initial_joint_position, double sampling_time,
                              trajectory_msgs::JointTrajectory& joint_trajectory,
                              moveit_msgs::MoveItErrorCodes& error_code, bool check_self_collision = false);
 

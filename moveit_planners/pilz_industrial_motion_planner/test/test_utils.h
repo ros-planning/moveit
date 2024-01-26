@@ -433,8 +433,8 @@ bool checkBlendResult(const pilz_industrial_motion_planner::TrajectoryBlendReque
 bool generateTrajFromBlendTestData(const planning_scene::PlanningSceneConstPtr& scene,
                                    const std::shared_ptr<pilz_industrial_motion_planner::TrajectoryGenerator>& tg,
                                    const std::string& group_name, const std::string& link_name,
-                                   const BlendTestData& data, const double& sampling_time_1,
-                                   const double& sampling_time_2, planning_interface::MotionPlanResponse& res_lin_1,
+                                   const BlendTestData& data, double sampling_time_1, double sampling_time_2,
+                                   planning_interface::MotionPlanResponse& res_lin_1,
                                    planning_interface::MotionPlanResponse& res_lin_2, double& dis_lin_1,
                                    double& dis_lin_2);
 

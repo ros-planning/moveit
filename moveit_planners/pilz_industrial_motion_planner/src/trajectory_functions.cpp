@@ -188,7 +188,7 @@ bool pilz_industrial_motion_planner::generateJointTrajectory(
     const planning_scene::PlanningSceneConstPtr& scene,
     const pilz_industrial_motion_planner::JointLimitsContainer& joint_limits, const KDL::Trajectory& trajectory,
     const std::string& group_name, const std::string& link_name, const Eigen::Translation3d& offset,
-    const std::map<std::string, double>& initial_joint_position, const double& sampling_time,
+    const std::map<std::string, double>& initial_joint_position, double sampling_time,
     trajectory_msgs::JointTrajectory& joint_trajectory, moveit_msgs::MoveItErrorCodes& error_code,
     bool check_self_collision)
 {
@@ -198,13 +198,13 @@ bool pilz_industrial_motion_planner::generateJointTrajectory(
   ros::Time generation_begin = ros::Time::now();
 
   // generate the time samples
-  const double epsilon = 10e-06;  // avoid adding the last time sample twice
   std::vector<double> time_samples;
-  for (double t_sample = 0.0; t_sample < trajectory.Duration() - epsilon; t_sample += sampling_time)
+  const unsigned num_segments = std::ceil(trajectory.Duration() / sampling_time);
+  sampling_time = trajectory.Duration() / num_segments;
+  for (unsigned i = 0; i <= num_segments; ++i)
   {
-    time_samples.push_back(t_sample);
+    time_samples.push_back(i * sampling_time);
   }
-  time_samples.push_back(trajectory.Duration());
 
   // sample the trajectory and solve the inverse kinematics
   Eigen::Isometry3d pose_sample;
@@ -231,21 +231,9 @@ bool pilz_industrial_motion_planner::generateJointTrajectory(
     }
 
     // check the joint limits
-    double duration_current_sample = sampling_time;
-    // last interval can be shorter than the sampling time
-    if (time_iter == (time_samples.end() - 1) && time_samples.size() > 1)
-    {
-      duration_current_sample = *time_iter - *(time_iter - 1);
-    }
-    if (time_samples.size() == 1)
-    {
-      duration_current_sample = *time_iter;
-    }
-
     // skip the first sample with zero time from start for limits checking
-    if (time_iter != time_samples.begin() &&
-        !verifySampleJointLimits(ik_solution_last, joint_velocity_last, ik_solution, sampling_time,
-                                 duration_current_sample, joint_limits))
+    if (time_iter != time_samples.begin() && !verifySampleJointLimits(ik_solution_last, joint_velocity_last, ik_solution,
+                                                                      sampling_time, sampling_time, joint_limits))
     {
       ROS_ERROR_STREAM("Inverse kinematics solution at "
                        << *time_iter << "s violates the joint velocity/acceleration/deceleration limits.");
@@ -271,11 +259,9 @@ bool pilz_industrial_motion_planner::generateJointTrajectory(
 
       if (time_iter != time_samples.begin() && time_iter != time_samples.end() - 1)
       {
-        double joint_velocity =
-            (ik_solution.at(joint_name) - ik_solution_last.at(joint_name)) / duration_current_sample;
+        double joint_velocity = (ik_solution.at(joint_name) - ik_solution_last.at(joint_name)) / sampling_time;
         point.velocities.push_back(joint_velocity);
-        point.accelerations.push_back((joint_velocity - joint_velocity_last.at(joint_name)) /
-                                      (duration_current_sample + sampling_time) * 2);
+        point.accelerations.push_back((joint_velocity - joint_velocity_last.at(joint_name)) / sampling_time);
         joint_velocity_last[joint_name] = joint_velocity;
       }
       else

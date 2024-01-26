@@ -82,10 +82,10 @@ private:
    */
   void planPTP(const std::map<std::string, double>& start_pos, const std::map<std::string, double>& goal_pos,
                trajectory_msgs::JointTrajectory& joint_trajectory, const double& velocity_scaling_factor,
-               const double& acceleration_scaling_factor, const double& sampling_time);
+               const double& acceleration_scaling_factor, double sampling_time);
 
   void plan(const planning_scene::PlanningSceneConstPtr& scene, const planning_interface::MotionPlanRequest& req,
-            const MotionPlanInfo& plan_info, const double& sampling_time,
+            const MotionPlanInfo& plan_info, double sampling_time,
             trajectory_msgs::JointTrajectory& joint_trajectory) override;
 
 private:

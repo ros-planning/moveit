@@ -141,7 +141,7 @@ void TrajectoryGeneratorLIN::extractMotionPlanInfo(const planning_scene::Plannin
 
 void TrajectoryGeneratorLIN::plan(const planning_scene::PlanningSceneConstPtr& scene,
                                   const planning_interface::MotionPlanRequest& req, const MotionPlanInfo& plan_info,
-                                  const double& sampling_time, trajectory_msgs::JointTrajectory& joint_trajectory)
+                                  double sampling_time, trajectory_msgs::JointTrajectory& joint_trajectory)
 {
   // create Cartesian path for lin
   std::unique_ptr<KDL::Path> path(setPathLIN(plan_info.start_pose, plan_info.goal_pose));
