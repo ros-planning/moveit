@@ -28,6 +28,7 @@ API changes in MoveIt releases
 - The joint states of `passive` joints must be published in ROS and the CurrentStateMonitor will now wait for them as well. Their semantics dictate that they cannot be actively controlled, but they must be known to use the full robot state in collision checks. (https://github.com/ros-planning/moveit/pull/2663)
 - Removed deprecated header `moveit/macros/deprecation.h`. Use `[[deprecated]]` instead.
 - All uses of `MOVEIT_CLASS_FORWARD` et. al. must now be followed by a semicolon for consistency (and to get -pedantic builds to pass for the codebase).
+- The `constructGoalConstraints` method now uses `PositionConstraint` and `OrientationConstraint` to represent floating joint. Note: this makes for a spherical tolerance region by default, instead of the original rectangular one.
 - In case you start RViz in a namespace, the default topic for the trajectory visualization display now uses the relative instead of the absolute namespace (i.e. `<ns>/move_group/display_planned_path` instead of `/move_group/display_planned_path`).
 - `RobotState::attachBody()` now takes a unique_ptr instead of an owning raw pointer.
 - Moved the class `MoveItErrorCode` from both `moveit_ros_planning` and `moveit_ros_planning_interface` to `moveit_core`. The class now is in namespace `moveit::core`, access via `moveit::planning_interface` or `moveit_cpp::PlanningComponent` is deprecated.

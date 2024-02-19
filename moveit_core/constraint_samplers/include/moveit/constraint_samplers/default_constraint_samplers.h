@@ -54,6 +54,7 @@ MOVEIT_CLASS_FORWARD(JointConstraintSampler);  // Defines JointConstraintSampler
  * used in the sampling.  Unconstrained values will be sampled within
  * their limits.
  *
+ * Note: the joint constraint tolerances are considered a part of the constraint sampling region.
  */
 class JointConstraintSampler : public ConstraintSampler
 {
