@@ -70,6 +70,12 @@ public:
   void checkSelfCollision(const CollisionRequest& req, CollisionResult& res, const moveit::core::RobotState& state,
                           const AllowedCollisionMatrix& acm) const override;
 
+  void checkCollision(const CollisionRequest& req, CollisionResult& res,
+                      const moveit::core::RobotState& state) const override;
+
+  void checkCollision(const CollisionRequest& req, CollisionResult& res, const moveit::core::RobotState& state,
+                      const AllowedCollisionMatrix& acm) const override;
+
   void checkRobotCollision(const CollisionRequest& req, CollisionResult& res,
                            const moveit::core::RobotState& state) const override;
 
@@ -103,6 +109,10 @@ protected:
   /** \brief Bundles the different checkSelfCollision functions into a single function */
   void checkSelfCollisionHelper(const CollisionRequest& req, CollisionResult& res,
                                 const moveit::core::RobotState& state, const AllowedCollisionMatrix* acm) const;
+
+  /** \brief Bundles the different checkCollision functions into a single function */
+  void checkCollisionHelper(const CollisionRequest& req, CollisionResult& res, const moveit::core::RobotState& state,
+                            const AllowedCollisionMatrix* acm) const;
 
   /** \brief Bundles the different checkRobotCollision functions into a single function */
   void checkRobotCollisionHelper(const CollisionRequest& req, CollisionResult& res,

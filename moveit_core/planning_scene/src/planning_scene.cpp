@@ -489,12 +489,22 @@ void PlanningScene::checkCollision(const collision_detection::CollisionRequest& 
                                    const moveit::core::RobotState& robot_state,
                                    const collision_detection::AllowedCollisionMatrix& acm) const
 {
-  // check collision with the world using the padded version
-  getCollisionEnv()->checkRobotCollision(req, res, robot_state, acm);
+  bool use_padding_for_self_collision = getCollisionEnv()->getSelfCollisionUsesPaddedRobot();
+  bool no_padding_set = getCollisionEnv()->getNoPaddingScaling();
+  if (use_padding_for_self_collision || no_padding_set)
+  {
+    // check collision with the world and self-collisions using the padded version
+    getCollisionEnv()->checkCollision(req, res, robot_state, acm);
+  }
+  else
+  {
+    // check collision with the world using the padded version
+    getCollisionEnv()->checkRobotCollision(req, res, robot_state, acm);
 
-  // do self-collision checking with the unpadded version of the robot
-  if (!res.collision || (req.contacts && res.contacts.size() < req.max_contacts))
-    getCollisionEnvUnpadded()->checkSelfCollision(req, res, robot_state, acm);
+    // do self-collision checking with the unpadded version of the robot
+    if (!res.collision || (req.contacts && res.contacts.size() < req.max_contacts))
+      getCollisionEnvUnpadded()->checkSelfCollision(req, res, robot_state, acm);
+  }
 }
 
 void PlanningScene::checkCollisionUnpadded(const collision_detection::CollisionRequest& req,
@@ -511,14 +521,8 @@ void PlanningScene::checkCollisionUnpadded(const collision_detection::CollisionR
                                            const moveit::core::RobotState& robot_state,
                                            const collision_detection::AllowedCollisionMatrix& acm) const
 {
-  // check collision with the world using the unpadded version
-  getCollisionEnvUnpadded()->checkRobotCollision(req, res, robot_state, acm);
-
-  // do self-collision checking with the unpadded version of the robot
-  if (!res.collision || (req.contacts && res.contacts.size() < req.max_contacts))
-  {
-    getCollisionEnvUnpadded()->checkSelfCollision(req, res, robot_state, acm);
-  }
+  // check collision with the world and self-collision using the unpadded version
+  getCollisionEnvUnpadded()->checkCollision(req, res, robot_state, acm);
 }
 
 void PlanningScene::getCollidingPairs(collision_detection::CollisionResult::ContactMap& contacts)

@@ -70,12 +70,15 @@ static inline bool validatePadding(double padding)
 namespace collision_detection
 {
 CollisionEnv::CollisionEnv(const moveit::core::RobotModelConstPtr& model, double padding, double scale)
-  : robot_model_(model), world_(new World()), world_const_(world_)
+  : robot_model_(model), world_(new World()), world_const_(world_), no_padding_scaling_(true)
 {
   if (!validateScale(scale))
     scale = 1.0;
   if (!validatePadding(padding))
     padding = 0.0;
+
+  if (scale != 1.0 || padding != 0.0)
+    no_padding_scaling_ = false;
 
   const std::vector<const moveit::core::LinkModel*>& links = robot_model_->getLinkModelsWithCollisionGeometry();
   for (auto link : links)
@@ -87,12 +90,15 @@ CollisionEnv::CollisionEnv(const moveit::core::RobotModelConstPtr& model, double
 
 CollisionEnv::CollisionEnv(const moveit::core::RobotModelConstPtr& model, const WorldPtr& world, double padding,
                            double scale)
-  : robot_model_(model), world_(world), world_const_(world_)
+  : robot_model_(model), world_(world), world_const_(world_), no_padding_scaling_(true)
 {
   if (!validateScale(scale))
     scale = 1.0;
   if (!validatePadding(padding))
     padding = 0.0;
+
+  if (scale != 1.0 || padding != 0.0)
+    no_padding_scaling_ = false;
 
   const std::vector<const moveit::core::LinkModel*>& links = robot_model_->getLinkModelsWithCollisionGeometry();
   for (auto link : links)
@@ -103,15 +109,18 @@ CollisionEnv::CollisionEnv(const moveit::core::RobotModelConstPtr& model, const 
 }
 
 CollisionEnv::CollisionEnv(const CollisionEnv& other, const WorldPtr& world)
-  : robot_model_(other.robot_model_), world_(world), world_const_(world)
+  : robot_model_(other.robot_model_), world_(world), world_const_(world), no_padding_scaling_(other.no_padding_scaling_)
 {
   link_padding_ = other.link_padding_;
   link_scale_ = other.link_scale_;
 }
+
 void CollisionEnv::setPadding(double padding)
 {
   if (!validatePadding(padding))
     return;
+  if (padding != 0.0)
+    no_padding_scaling_ = false;
   std::vector<std::string> u;
   const std::vector<const moveit::core::LinkModel*>& links = robot_model_->getLinkModelsWithCollisionGeometry();
   for (auto link : links)
@@ -128,6 +137,8 @@ void CollisionEnv::setScale(double scale)
 {
   if (!validateScale(scale))
     return;
+  if (scale != 1.0)
+    no_padding_scaling_ = false;
   std::vector<std::string> u;
   const std::vector<const moveit::core::LinkModel*>& links = robot_model_->getLinkModelsWithCollisionGeometry();
   for (auto link : links)
@@ -143,6 +154,8 @@ void CollisionEnv::setScale(double scale)
 void CollisionEnv::setLinkPadding(const std::string& link_name, double padding)
 {
   validatePadding(padding);
+  if (padding != 0.0)
+    no_padding_scaling_ = false;
   bool update = getLinkPadding(link_name) != padding;
   link_padding_[link_name] = padding;
   if (update)
@@ -163,6 +176,7 @@ double CollisionEnv::getLinkPadding(const std::string& link_name) const
 
 void CollisionEnv::setLinkPadding(const std::map<std::string, double>& padding)
 {
+  no_padding_scaling_ = false;
   std::vector<std::string> u;
   for (const auto& link_pad_pair : padding)
   {
@@ -184,6 +198,8 @@ const std::map<std::string, double>& CollisionEnv::getLinkPadding() const
 void CollisionEnv::setLinkScale(const std::string& link_name, double scale)
 {
   validateScale(scale);
+  if (scale != 1.0)
+    no_padding_scaling_ = false;
   bool update = getLinkScale(link_name) != scale;
   link_scale_[link_name] = scale;
   if (update)
@@ -204,6 +220,7 @@ double CollisionEnv::getLinkScale(const std::string& link_name) const
 
 void CollisionEnv::setLinkScale(const std::map<std::string, double>& scale)
 {
+  no_padding_scaling_ = false;
   std::vector<std::string> u;
   for (const auto& link_scale_pair : scale)
   {
@@ -223,6 +240,7 @@ const std::map<std::string, double>& CollisionEnv::getLinkScale() const
 
 void CollisionEnv::setPadding(const std::vector<moveit_msgs::LinkPadding>& padding)
 {
+  no_padding_scaling_ = false;
   std::vector<std::string> u;
   for (const auto& p : padding)
   {
@@ -238,6 +256,7 @@ void CollisionEnv::setPadding(const std::vector<moveit_msgs::LinkPadding>& paddi
 
 void CollisionEnv::setScale(const std::vector<moveit_msgs::LinkScale>& scale)
 {
+  no_padding_scaling_ = false;
   std::vector<std::string> u;
   for (const auto& s : scale)
   {
@@ -275,8 +294,23 @@ void CollisionEnv::getScale(std::vector<moveit_msgs::LinkScale>& scale) const
   }
 }
 
+bool CollisionEnv::getSelfCollisionUsesPaddedRobot() const
+{
+  return self_collision_uses_padded_robot_;
+}
+
+void CollisionEnv::setSelfCollisionUsesPaddedRobot(bool use_padded_robot)
+{
+  self_collision_uses_padded_robot_ = use_padded_robot;
+}
+
 void CollisionEnv::updatedPaddingOrScaling(const std::vector<std::string>& /*links*/)
 {
+}
+
+bool CollisionEnv::getNoPaddingScaling() const
+{
+  return no_padding_scaling_;
 }
 
 void CollisionEnv::setWorld(const WorldPtr& world)
@@ -291,17 +325,17 @@ void CollisionEnv::setWorld(const WorldPtr& world)
 void CollisionEnv::checkCollision(const CollisionRequest& req, CollisionResult& res,
                                   const moveit::core::RobotState& state) const
 {
-  checkSelfCollision(req, res, state);
+  checkRobotCollision(req, res, state);
   if (!res.collision || (req.contacts && res.contacts.size() < req.max_contacts))
-    checkRobotCollision(req, res, state);
+    checkSelfCollision(req, res, state);
 }
 
 void CollisionEnv::checkCollision(const CollisionRequest& req, CollisionResult& res,
                                   const moveit::core::RobotState& state, const AllowedCollisionMatrix& acm) const
 {
-  checkSelfCollision(req, res, state, acm);
+  checkRobotCollision(req, res, state, acm);
   if (!res.collision || (req.contacts && res.contacts.size() < req.max_contacts))
-    checkRobotCollision(req, res, state, acm);
+    checkSelfCollision(req, res, state, acm);
 }
 
 }  // end of namespace collision_detection

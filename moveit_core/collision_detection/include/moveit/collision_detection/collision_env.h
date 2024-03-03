@@ -297,6 +297,12 @@ public:
   /** @brief Get the link scaling as a vector of messages*/
   void getScale(std::vector<moveit_msgs::LinkScale>& scale) const;
 
+  bool getSelfCollisionUsesPaddedRobot() const;
+  void setSelfCollisionUsesPaddedRobot(bool newSelf_collision_use_padded_robot);
+
+  /** @brief Get if any non default padding or scaling is set*/
+  bool getNoPaddingScaling() const;
+
 protected:
   /** @brief When the scale or padding is changed for a set of links by any of the functions in this class,
      updatedPaddingOrScaling() function is called.
@@ -315,8 +321,13 @@ protected:
   /** @brief The internally maintained map (from link names to scaling)*/
   std::map<std::string, double> link_scale_;
 
+  /** @brief should the self-collision use padded or unpadded robot links*/
+  bool self_collision_uses_padded_robot_;
+
 private:
   WorldPtr world_;             // The world always valid, never nullptr.
   WorldConstPtr world_const_;  // always same as world_
+  bool no_padding_scaling_;    // to allow for optimizations if padded==unpadded
 };
+
 }  // namespace collision_detection
