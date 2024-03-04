@@ -54,8 +54,9 @@ moveit::core::RobotModelPtr loadTestingRobotModel(const std::string& robot_name)
 {
   urdf::ModelInterfaceSharedPtr urdf = loadModelInterface(robot_name);
   srdf::ModelSharedPtr srdf = loadSRDFModel(robot_name);
-  moveit::core::RobotModelPtr robot_model(new moveit::core::RobotModel(urdf, srdf));
-  return robot_model;
+  if (!urdf || !srdf)
+    return moveit::core::RobotModelPtr();
+  return std::make_shared<moveit::core::RobotModel>(urdf, srdf);
 }
 
 urdf::ModelInterfaceSharedPtr loadModelInterface(const std::string& robot_name)
