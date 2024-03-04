@@ -1,0 +1,45 @@
+name: API docs
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  docs:
+    strategy:
+      fail-fast: false
+      matrix:
+        ROS_DISTRO: [noetic]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: addnab/docker-run-action@v3
+        name: Build API docs
+        with:
+          image: moveit/moveit:${{ matrix.ROS_DISTRO }}-source
+          options: -v /tmp/docs:/tmp/docs
+          shell: bash
+          run: |
+            # install required packages
+            apt-get -q update
+            PYTHON=python${{ matrix.ROS_DISTRO == 'noetic' && '3' || '' }}
+            apt-get -q install -y ros-${{ matrix.ROS_DISTRO }}-rosdoc-lite $PYTHON-sphinx-rtd-theme $PYTHON-pip
+            # We need a much more recent version of sphinx
+            $PYTHON -m pip install -U sphinx
+            # source workspace
+            source install/setup.bash
+            # iterate over all packages in topological order
+            while read -r -a line; do
+              set -- "${line[@]}"
+              pkg_name=$1
+              pkg_path=$2
+              rosdoc_lite -o /tmp/docs/$pkg_name src/moveit/$pkg_path
+            done <<< $(catkin_topological_order src/moveit)
+
+      - name: Deploy API docs
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          personal_token: ${{ secrets.GH_PAGES_TOKEN }}
+          publish_dir: /tmp/docs
+          external_repository: ros-planning/moveit_tutorials
+          destination_dir: api
