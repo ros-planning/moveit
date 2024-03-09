@@ -37,6 +37,11 @@ if(CATKIN_ENABLE_TESTING)
     test/test_cartesian_interpolator.cpp)
   target_link_libraries(test_cartesian_interpolator ${MOVEIT_LIB_NAME} moveit_test_utils)
 
+  add_rostest_gtest(test_jacobian_derivative
+    test/test_jacobian_derivative.test
+    test/test_jacobian_derivative.cpp)
+  target_link_libraries(test_jacobian_derivative ${MOVEIT_LIB_NAME} moveit_test_utils)
+
   catkin_add_gtest(test_robot_state_complex test/test_kinematic_complex.cpp)
   target_link_libraries(test_robot_state_complex ${MOVEIT_LIB_NAME} moveit_test_utils)
 
