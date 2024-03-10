@@ -72,6 +72,8 @@ struct ServoParameters
   bool publish_joint_velocities;
   bool publish_joint_accelerations;
   bool low_latency_mode;
+  bool is_primary_planning_scene_monitor;
+  std::string monitored_planning_scene_topic;
   // Collision checking
   bool check_collisions;
   std::string collision_check_type;

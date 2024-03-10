@@ -18,4 +18,6 @@
     <rosparam command="load" file="$(arg config)"/>
   </node>
 
+  <node pkg="tf" type="static_transform_publisher" name="test_tf_broadcaster" args="0 0 0 0 0 0 1 ee_link test_link 10" />
+
 </launch>
