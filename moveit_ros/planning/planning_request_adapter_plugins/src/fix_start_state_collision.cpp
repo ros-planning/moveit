@@ -55,28 +55,28 @@ public:
 
   void initialize(const ros::NodeHandle& nh) override
   {
-    if (!nh.getParam(DT_PARAM_NAME, max_dt_offset_))
+    if (nh.getParam(DT_PARAM_NAME, max_dt_offset_))
+    {
+      ROS_INFO_STREAM("Param '" << DT_PARAM_NAME << "' was set to " << max_dt_offset_);
+    }
+    else
     {
       max_dt_offset_ = 0.5;
       ROS_INFO_STREAM("Param '" << DT_PARAM_NAME << "' was not set. Using default value: " << max_dt_offset_);
     }
-    else
-      ROS_INFO_STREAM("Param '" << DT_PARAM_NAME << "' was set to " << max_dt_offset_);
 
-    if (!nh.getParam(JIGGLE_PARAM_NAME, jiggle_fraction_))
+    if (nh.getParam(JIGGLE_PARAM_NAME, jiggle_fraction_))
+    {
+      ROS_INFO_STREAM("Param '" << JIGGLE_PARAM_NAME << "' was set to " << jiggle_fraction_);
+    }
+    else
     {
       jiggle_fraction_ = 0.02;
       ROS_INFO_STREAM("Param '" << JIGGLE_PARAM_NAME << "' was not set. Using default value: " << jiggle_fraction_);
     }
-    else
-      ROS_INFO_STREAM("Param '" << JIGGLE_PARAM_NAME << "' was set to " << jiggle_fraction_);
 
-    if (!nh.getParam(ATTEMPTS_PARAM_NAME, sampling_attempts_))
-    {
-      sampling_attempts_ = 100;
-      ROS_INFO_STREAM("Param '" << ATTEMPTS_PARAM_NAME << "' was not set. Using default value: " << sampling_attempts_);
-    }
-    else
+
+    if (nh.getParam(ATTEMPTS_PARAM_NAME, sampling_attempts_))
     {
       if (sampling_attempts_ < 1)
       {
@@ -85,6 +85,12 @@ public:
       }
       ROS_INFO_STREAM("Param '" << ATTEMPTS_PARAM_NAME << "' was set to " << sampling_attempts_);
     }
+    else
+    {
+      sampling_attempts_ = 100;
+      ROS_INFO_STREAM("Param '" << ATTEMPTS_PARAM_NAME << "' was not set. Using default value: " << sampling_attempts_);
+    }
+
   }
 
   std::string getDescription() const override
