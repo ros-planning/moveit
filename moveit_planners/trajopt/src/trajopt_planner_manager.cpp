@@ -38,7 +38,7 @@
 
 #include <moveit/planning_interface/planning_interface.h>
 
-#include "moveit/collision_detection_fcl/collision_detector_allocator_fcl.h"
+#include "moveit/collision_detection_bullet/collision_detector_allocator_bullet.h"
 
 #include <class_loader/class_loader.hpp>
 
@@ -112,8 +112,8 @@ public:
     // create PlanningScene using hybrid collision detector
     planning_scene::PlanningScenePtr ps = planning_scene->diff();
 
-    // set FCL for the collision
-    ps->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorFCL::create(), true);
+    // set Bullet as collision detector
+    ps->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create(), true);
 
     // retrieve and configure existing context
     const TrajOptPlanningContextPtr& context = planning_contexts_.at(req.group_name);

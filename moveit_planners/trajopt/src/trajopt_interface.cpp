@@ -211,9 +211,40 @@ bool TrajOptInterface::solve(const planning_scene::PlanningSceneConstPtr& planni
   joint_vel->targets = std::vector<double>(dof, 0.0);
   joint_vel->first_step = 0;
   joint_vel->last_step = problem_info.basic_info.n_steps - 1;
-  joint_vel->name = "joint_vel";
+  joint_vel->name = "joint_velocity";
   joint_vel->term_type = trajopt_interface::TT_COST;
   problem_info.cost_infos.push_back(joint_vel);
+
+  ROS_INFO(" ======================================= Velocity Constraint, hard-coded");
+  // TODO: should be defined by user, its parametes should be added to setup.yaml
+  trajopt_interface::JointVelTermInfoPtr joint_vel_cnt(new trajopt_interface::JointVelTermInfo);
+
+  // Add a velocity cnt with time to insure that robot dynamics are obeyed
+  std::vector<double> vel_lower_lim{ 0, 0, 0, 0, 0, 0, 0 };
+  std::vector<double> vel_upper_lim{ 150 * 3.14 / 180, 150 * 3.14 / 180, 150 * 3.14 / 180, 150 * 3.14 / 180,
+                                     180 * 3.14 / 180, 180 * 3.14 / 180, 180 * 3.14 / 180 };
+
+  joint_vel_cnt->targets = std::vector<double>(dof, 0.0);
+  joint_vel_cnt->coeffs = std::vector<double>(dof, 50.0);
+  joint_vel_cnt->lower_tols = vel_lower_lim;
+  joint_vel_cnt->upper_tols = vel_upper_lim;
+  joint_vel_cnt->term_type = (trajopt_interface::TT_CNT | trajopt_interface::TT_USE_TIME);
+  joint_vel_cnt->first_step = 0;
+  joint_vel_cnt->last_step = problem_info.basic_info.n_steps - 1;
+  joint_vel_cnt->name = "joint_velocity_cnt";
+  // problem_info.cnt_infos.push_back(joint_vel_cnt);
+
+  ROS_INFO(" ======================================= Collision Cost, hard-coded");
+  // TODO: should be defined by user, its parametes should be added to trajopt_planning.yaml
+  trajopt_interface::CollisionTermInfoPtr collision(new trajopt_interface::CollisionTermInfo);
+  collision->name = "collision";
+  collision->term_type = trajopt_interface::TT_COST;
+  collision->continuous = true;
+  collision->first_step = 0;
+  collision->last_step = problem_info.basic_info.n_steps - 1;
+  collision->gap = 1;
+  collision->info = util::createSafetyMarginDataVector(problem_info.basic_info.n_steps, 0.025, 40);
+  problem_info.cost_infos.push_back(collision);
 
   ROS_INFO(" ======================================= Visibility Constraints");
   if (!req.goal_constraints[0].visibility_constraints.empty())

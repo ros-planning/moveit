@@ -49,6 +49,7 @@
 
 #include "trajopt_interface/problem_description.h"
 #include "trajopt_interface/kinematic_terms.h"
+#include "trajopt_interface/collision_terms.h"
 
 /**
  * @brief Checks the size of the parameter given and throws if incorrect
@@ -543,6 +544,59 @@ void JointVelTermInfo::addObjectiveTerms(TrajOptProblem& prob)
   else
   {
     ROS_WARN("JointVelTermInfo does not have a valid term_type defined. No cost/constraint applied");
+  }
+}
+
+void CollisionTermInfo::addObjectiveTerms(TrajOptProblem& prob)
+{
+  // int n_dof = static_cast<int>(prob.GetKin()->numJoints());
+  unsigned int n_dof = prob.GetNumDOF();
+
+  if (term_type == TT_COST)
+  {
+    if (continuous)
+    {
+      for (int i = first_step; i <= last_step - gap; ++i)
+      {
+        prob.addCost(sco::Cost::Ptr(new CollisionCost(prob.GetPlanningScene(), prob.GetPlanningGroup(),
+                                                      info[static_cast<size_t>(i - first_step)],
+                                                      prob.GetVarRow(i, 0, n_dof), prob.GetVarRow(i + gap, 0, n_dof))));
+        prob.getCosts().back()->setName((boost::format("%s_%i") % name.c_str() % i).str());
+      }
+    }
+    else
+    {
+      for (int i = first_step; i <= last_step; ++i)
+      {
+        prob.addCost(
+            sco::Cost::Ptr(new CollisionCost(prob.GetPlanningScene(), prob.GetPlanningGroup(),
+                                             info[static_cast<size_t>(i - first_step)], prob.GetVarRow(i, 0, n_dof))));
+        prob.getCosts().back()->setName((boost::format("%s_%i") % name.c_str() % i).str());
+      }
+    }
+  }
+  else
+  {  // ALMOST COPIED
+    if (continuous)
+    {
+      for (int i = first_step; i < last_step; ++i)
+      {
+        prob.addIneqConstraint(sco::Constraint::Ptr(new CollisionConstraint(
+            prob.GetPlanningScene(), prob.GetPlanningGroup(), info[static_cast<size_t>(i - first_step)],
+            prob.GetVarRow(i, 0, n_dof), prob.GetVarRow(i + 1, 0, n_dof))));
+        prob.getIneqConstraints().back()->setName((boost::format("%s_%i") % name.c_str() % i).str());
+      }
+    }
+    else
+    {
+      for (int i = first_step; i <= last_step; ++i)
+      {
+        prob.addIneqConstraint(sco::Constraint::Ptr(
+            new CollisionConstraint(prob.GetPlanningScene(), prob.GetPlanningGroup(),
+                                    info[static_cast<size_t>(i - first_step)], prob.GetVarRow(i, 0, n_dof))));
+        prob.getIneqConstraints().back()->setName((boost::format("%s_%i") % name.c_str() % i).str());
+      }
+    }
   }
 }
 
