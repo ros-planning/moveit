@@ -32,17 +32,18 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* Author: Ioan Sucan */
+/* Author: Ioan Sucan, Jeroen De Maeyer */
 
 #include <moveit/ompl_interface/detail/state_validity_checker.h>
 #include <moveit/ompl_interface/model_based_planning_context.h>
 #include <moveit/profiler/profiler.h>
 #include <ros/ros.h>
 
+#include <ompl/base/spaces/constraint/ConstrainedStateSpace.h>
+
 namespace ompl_interface
 {
 constexpr char LOGNAME[] = "state_validity_checker";
-}  // namespace ompl_interface
 
 ompl_interface::StateValidityChecker::StateValidityChecker(const ModelBasedPlanningContext* pc)
   : ompl::base::StateValidityChecker(pc->getOMPLSimpleSetup()->getSpaceInformation())
@@ -73,11 +74,14 @@ void ompl_interface::StateValidityChecker::setVerbose(bool flag)
   verbose_ = flag;
 }
 
-bool ompl_interface::StateValidityChecker::isValid(const ompl::base::State* state, bool verbose) const
+bool StateValidityChecker::isValid(const ompl::base::State* state, bool verbose) const
 {
+  assert(state != nullptr);
   // Use cached validity if it is available
   if (state->as<ModelBasedStateSpace::StateType>()->isValidityKnown())
+  {
     return state->as<ModelBasedStateSpace::StateType>()->isMarkedValid();
+  }
 
   if (!si_->satisfiesBounds(state))
   {
@@ -120,8 +124,9 @@ bool ompl_interface::StateValidityChecker::isValid(const ompl::base::State* stat
   return !res.collision;
 }
 
-bool ompl_interface::StateValidityChecker::isValid(const ompl::base::State* state, double& dist, bool verbose) const
+bool StateValidityChecker::isValid(const ompl::base::State* state, double& dist, bool verbose) const
 {
+  assert(state != nullptr);
   // Use cached validity and distance if they are available
   if (state->as<ModelBasedStateSpace::StateType>()->isValidityKnown() &&
       state->as<ModelBasedStateSpace::StateType>()->isGoalDistanceKnown())
@@ -169,8 +174,9 @@ bool ompl_interface::StateValidityChecker::isValid(const ompl::base::State* stat
   return !res.collision;
 }
 
-double ompl_interface::StateValidityChecker::cost(const ompl::base::State* state) const
+double StateValidityChecker::cost(const ompl::base::State* state) const
 {
+  assert(state != nullptr);
   double cost = 0.0;
 
   moveit::core::RobotState* robot_state = tss_.getStateStorage();
@@ -181,13 +187,16 @@ double ompl_interface::StateValidityChecker::cost(const ompl::base::State* state
   planning_context_->getPlanningScene()->checkCollision(collision_request_with_cost_, res, *robot_state);
 
   for (const collision_detection::CostSource& cost_source : res.cost_sources)
+  {
     cost += cost_source.cost * cost_source.getVolume();
+  }
 
   return cost;
 }
 
-double ompl_interface::StateValidityChecker::clearance(const ompl::base::State* state) const
+double StateValidityChecker::clearance(const ompl::base::State* state) const
 {
+  assert(state != nullptr);
   moveit::core::RobotState* robot_state = tss_.getStateStorage();
   planning_context_->getOMPLStateSpace()->copyToRobotState(*robot_state, state);
 
@@ -195,3 +204,112 @@ double ompl_interface::StateValidityChecker::clearance(const ompl::base::State* 
   planning_context_->getPlanningScene()->checkCollision(collision_request_with_distance_, res, *robot_state);
   return res.collision ? 0.0 : (res.distance < 0.0 ? std::numeric_limits<double>::infinity() : res.distance);
 }
+
+/*******************************************
+ * Constrained Planning StateValidityChecker
+ * *****************************************/
+bool ConstrainedPlanningStateValidityChecker::isValid(const ompl::base::State* wrapped_state, bool verbose) const
+{
+  assert(wrapped_state != nullptr);
+  // Unwrap the state from a ConstrainedStateSpace::StateType
+  auto state = wrapped_state->as<ompl::base::ConstrainedStateSpace::StateType>()->getState();
+
+  // Use cached validity if it is available
+  if (state->as<ModelBasedStateSpace::StateType>()->isValidityKnown())
+  {
+    return state->as<ModelBasedStateSpace::StateType>()->isMarkedValid();
+  }
+
+  // do not use the unwrapped state here, as satisfiesBounds expects a state of type ConstrainedStateSpace::StateType
+  if (!si_->satisfiesBounds(wrapped_state))  // si_ = ompl::base::SpaceInformation
+  {
+    ROS_DEBUG_NAMED(LOGNAME, "State outside bounds");
+    const_cast<ob::State*>(state)->as<ModelBasedStateSpace::StateType>()->markInvalid();
+    return false;
+  }
+
+  moveit::core::RobotState* robot_state = tss_.getStateStorage();
+  // do not use the unwrapped state here, as copyToRobotState expects a state of type ConstrainedStateSpace::StateType
+  planning_context_->getOMPLStateSpace()->copyToRobotState(*robot_state, wrapped_state);
+
+  // check path constraints
+  const kinematic_constraints::KinematicConstraintSetPtr& kset = planning_context_->getPathConstraints();
+  if (kset && !kset->decide(*robot_state, verbose).satisfied)
+  {
+    const_cast<ob::State*>(state)->as<ModelBasedStateSpace::StateType>()->markInvalid();
+    return false;
+  }
+
+  // check feasibility
+  if (!planning_context_->getPlanningScene()->isStateFeasible(*robot_state, verbose))
+  {
+    const_cast<ob::State*>(state)->as<ModelBasedStateSpace::StateType>()->markInvalid();
+    return false;
+  }
+
+  // check collision avoidance
+  collision_detection::CollisionResult res;
+  planning_context_->getPlanningScene()->checkCollision(
+      verbose ? collision_request_simple_verbose_ : collision_request_simple_, res, *robot_state);
+  if (!res.collision)
+  {
+    const_cast<ob::State*>(state)->as<ModelBasedStateSpace::StateType>()->markValid();
+  }
+  else
+  {
+    const_cast<ob::State*>(state)->as<ModelBasedStateSpace::StateType>()->markInvalid();
+  }
+  return !res.collision;
+}
+
+bool ConstrainedPlanningStateValidityChecker::isValid(const ompl::base::State* wrapped_state, double& dist,
+                                                      bool verbose) const
+{
+  assert(wrapped_state != nullptr);
+  // Unwrap the state from a ConstrainedStateSpace::StateType
+  auto state = wrapped_state->as<ompl::base::ConstrainedStateSpace::StateType>()->getState();
+
+  // Use cached validity and distance if they are available
+  if (state->as<ModelBasedStateSpace::StateType>()->isValidityKnown() &&
+      state->as<ModelBasedStateSpace::StateType>()->isGoalDistanceKnown())
+  {
+    dist = state->as<ModelBasedStateSpace::StateType>()->distance;
+    return state->as<ModelBasedStateSpace::StateType>()->isMarkedValid();
+  }
+
+  // do not use the unwrapped state here, as satisfiesBounds expects a state of type ConstrainedStateSpace::StateType
+  if (!si_->satisfiesBounds(wrapped_state))  // si_ = ompl::base::SpaceInformation
+  {
+    ROS_DEBUG_NAMED(LOGNAME, "State outside bounds");
+    const_cast<ob::State*>(state)->as<ModelBasedStateSpace::StateType>()->markInvalid(0.0);
+    return false;
+  }
+
+  moveit::core::RobotState* robot_state = tss_.getStateStorage();
+
+  // do not use the unwrapped state here, as copyToRobotState expects a state of type ConstrainedStateSpace::StateType
+  planning_context_->getOMPLStateSpace()->copyToRobotState(*robot_state, wrapped_state);
+
+  // check path constraints
+  const kinematic_constraints::KinematicConstraintSetPtr& kset = planning_context_->getPathConstraints();
+  if (kset && !kset->decide(*robot_state, verbose).satisfied)
+  {
+    const_cast<ob::State*>(state)->as<ModelBasedStateSpace::StateType>()->markInvalid();
+    return false;
+  }
+
+  // check feasibility
+  if (!planning_context_->getPlanningScene()->isStateFeasible(*robot_state, verbose))
+  {
+    dist = 0.0;
+    return false;
+  }
+
+  // check collision avoidance
+  collision_detection::CollisionResult res;
+  planning_context_->getPlanningScene()->checkCollision(
+      verbose ? collision_request_with_distance_verbose_ : collision_request_with_distance_, res, *robot_state);
+  dist = res.distance;
+  return !res.collision;
+}
+}  // namespace ompl_interface
