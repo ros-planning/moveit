@@ -645,7 +645,7 @@ public:
       return false;
     }
 
-    // if needed, start the monitor and wait up to 1 second for a full robot state
+    // if needed, start the monitor and wait up to 5 seconds for a full robot state
     if (!current_state_monitor_->isActive())
       current_state_monitor_->startStateMonitor();
 
@@ -661,11 +661,15 @@ public:
       return false;
     }
 
-    // if needed, start the monitor and wait up to 1 second for a full robot state
+    // if needed, start the monitor and wait up to 5 seconds for a full robot state
     if (!current_state_monitor_->isActive())
+    {
+      ROS_WARN_NAMED(LOGNAME, "getCurrentState was called before a current_state_monitor was initialized. Call "
+                              "startStateMonitor() after starting up the move_group_interface!");
       current_state_monitor_->startStateMonitor();
+    }
 
-    if (!current_state_monitor_->waitForCurrentState(ros::Time::now(), wait_seconds))
+    if (!current_state_monitor_->waitForCurrentState(opt_.group_name_, ros::Time::now(), wait_seconds))
     {
       ROS_ERROR_NAMED(LOGNAME, "Failed to fetch current robot state");
       return false;
