@@ -227,6 +227,9 @@ public:
   RobotTrajectory& append(const RobotTrajectory& source, double dt, size_t start_index = 0,
                           size_t end_index = std::numeric_limits<std::size_t>::max());
 
+  /** Truncate trajectory to given size */
+  void truncate(size_t size);
+
   void swap(robot_trajectory::RobotTrajectory& other);
 
   RobotTrajectory& clear()

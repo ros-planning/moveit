@@ -337,6 +337,7 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
               }
             }
             ROS_ERROR_STREAM("Completed listing of explanations for invalid states.");
+            res.trajectory_->truncate(index[0]);  // truncate returned trajectory to valid part
           }
         }
         else

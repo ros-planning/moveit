@@ -117,6 +117,13 @@ RobotTrajectory& RobotTrajectory::append(const RobotTrajectory& source, double d
   return *this;
 }
 
+void RobotTrajectory::truncate(size_t size)
+{
+  size = std::min(size, waypoints_.size());
+  waypoints_.resize(size);
+  duration_from_previous_.resize(size);
+}
+
 RobotTrajectory& RobotTrajectory::reverse()
 {
   std::reverse(waypoints_.begin(), waypoints_.end());
