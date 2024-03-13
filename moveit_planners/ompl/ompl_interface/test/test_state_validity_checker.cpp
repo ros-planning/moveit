@@ -117,7 +117,7 @@ public:
     EXPECT_TRUE(checker->isValid(ompl_state.get()));
 
     // move first joint obviously outside any joint limits
-    ompl_state->as<ompl_interface::JointModelStateSpace::StateType>()->values[0] = std::numeric_limits<double>::max();
+    ompl_state->as<ompl_interface::JointModelStateSpace::StateType>()->values()[0] = std::numeric_limits<double>::max();
     ompl_state->as<ompl_interface::JointModelStateSpace::StateType>()->clearKnownInformation();
 
     ROS_DEBUG_STREAM_NAMED(LOGNAME, ompl_state.reals());

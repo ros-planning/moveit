@@ -41,6 +41,8 @@
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/kinematic_constraints/kinematic_constraint.h>
 #include <moveit/constraint_samplers/constraint_sampler.h>
+#include <atomic>
+#include <memory>
 
 namespace ompl_interface
 {
@@ -86,84 +88,202 @@ public:
       IS_GOAL_STATE = 16
     };
 
-    StateType() : ompl::base::State(), values(nullptr), tag(-1), flags(0), distance(0.0)
+    /** \brief Thread-safe container for cached values.
+     *
+     * OMPL requires all \c const qualified member functions to be thread-safe.
+     * Some classes like ompl_interface::StateValidityChecker use this State type
+     * to cache some results, using \c const_cast . This container is a \c mutable
+     * atomic member of the state, which allows caching results without UB and data races.
+     * It should only be modified with the help of modifyCache(),
+     * which ensures that the state itself is consistent to other threads.
+     * To process the data in the cache, always get a copy of the cache using getCache().
+     * The 16 byte alignment is needed for Compare-and-Exchange on x64.
+     */
+    struct alignas(16) AtomicCache
+    {
+      int tag;
+      int flags;
+      double distance;
+
+      bool isValidityKnown() const
+      {
+        return flags & VALIDITY_KNOWN;
+      }
+
+      bool isMarkedValid() const
+      {
+        return flags & VALIDITY_TRUE;
+      }
+
+      bool isGoalDistanceKnown() const
+      {
+        return flags & GOAL_DISTANCE_KNOWN;
+      }
+
+      bool isStartState() const
+      {
+        return flags & IS_START_STATE;
+      }
+
+      bool isGoalState() const
+      {
+        return flags & IS_GOAL_STATE;
+      }
+
+      bool isInputState() const
+      {
+        return flags & (IS_START_STATE | IS_GOAL_STATE);
+      }
+    };
+    static_assert(sizeof(AtomicCache) == 16, "Padding not well supported for CAS");
+
+    StateType() : ompl::base::State(), atomic_cache(AtomicCache{ -1, 0, 0.0 }), values_(nullptr)
     {
     }
 
-    void markValid(double d)
+    /** \brief Mark state as valid and set the known distance.
+     *
+     * This function is \c const qualified to make it mutable from
+     * within OMPL interfaces which pass a <tt>const State *</tt>.
+     * \param d Distance
+     */
+    void markValid(double d) const
     {
-      distance = d;
-      flags |= GOAL_DISTANCE_KNOWN;
-      markValid();
+      modifyCache([d](AtomicCache& desired) {
+        desired.distance = d;
+        desired.flags |= (VALIDITY_KNOWN | VALIDITY_TRUE | GOAL_DISTANCE_KNOWN);
+      });
     }
 
-    void markValid()
+    /** \brief Mark state as valid.
+     *
+     * This function is \c const qualified to make it mutable from
+     * within OMPL interfaces which pass a <tt>const State *</tt>.
+     */
+    void markValid() const
     {
-      flags |= (VALIDITY_KNOWN | VALIDITY_TRUE);
+      setFlag(VALIDITY_KNOWN | VALIDITY_TRUE);
     }
 
-    void markInvalid(double d)
+    /** \brief Mark state as invalid and set the known distance.
+     *
+     * This function is \c const qualified to make it mutable from
+     * within OMPL interfaces which pass a <tt>const State *</tt>.
+     * \param d Distance
+     */
+    void markInvalid(double d) const
     {
-      distance = d;
-      flags |= GOAL_DISTANCE_KNOWN;
-      markInvalid();
+      modifyCache([d](AtomicCache& desired) {
+        desired.distance = d;
+        desired.flags &= ~VALIDITY_TRUE;
+        desired.flags |= (VALIDITY_KNOWN | GOAL_DISTANCE_KNOWN);
+      });
     }
 
-    void markInvalid()
+    /** \brief Mark state as invalid.
+     *
+     * This function is \c const qualified to make it mutable from
+     * within OMPL interfaces which pass a <tt>const State *</tt>.
+     */
+    void markInvalid() const
     {
-      flags &= ~VALIDITY_TRUE;
-      flags |= VALIDITY_KNOWN;
-    }
-
-    bool isValidityKnown() const
-    {
-      return flags & VALIDITY_KNOWN;
+      modifyCache([](AtomicCache& desired) {
+        desired.flags &= ~VALIDITY_TRUE;
+        desired.flags |= VALIDITY_KNOWN;
+      });
     }
 
     void clearKnownInformation()
     {
-      flags = 0;
-    }
-
-    bool isMarkedValid() const
-    {
-      return flags & VALIDITY_TRUE;
-    }
-
-    bool isGoalDistanceKnown() const
-    {
-      return flags & GOAL_DISTANCE_KNOWN;
-    }
-
-    bool isStartState() const
-    {
-      return flags & IS_START_STATE;
-    }
-
-    bool isGoalState() const
-    {
-      return flags & IS_GOAL_STATE;
-    }
-
-    bool isInputState() const
-    {
-      return flags & (IS_START_STATE | IS_GOAL_STATE);
+      modifyCache([](AtomicCache& desired) { desired.flags = 0; });
     }
 
     void markStartState()
     {
-      flags |= IS_START_STATE;
+      setFlag(IS_START_STATE);
     }
 
     void markGoalState()
     {
-      flags |= IS_GOAL_STATE;
+      setFlag(IS_GOAL_STATE);
     }
 
-    double* values;
-    int tag;
-    int flags;
-    double distance;
+    int flags() const
+    {
+      return atomic_cache.load().flags;
+    }
+    void setFlag(int flag) const
+    {
+      modifyCache([flag](AtomicCache& desired) { desired.flags |= flag; });
+    }
+    void clearFlag(int flag) const
+    {
+      modifyCache([flag](AtomicCache& desired) { desired.flags &= ~flag; });
+    }
+    int tag() const
+    {
+      return atomic_cache.load().tag;
+    }
+    void setTag(int tag)
+    {
+      modifyCache([tag](AtomicCache& desired) { desired.tag = tag; });
+    }
+    /** \brief Get a copy of the cached data.
+     *
+     * Use this getter to get a consistent dataset
+     * (e.g. valid distance with GOAL_DISTANCE_KNOWN flag set)
+     * for further processing. Doing otherwise might result in data races.
+     * \return A valid and consistent dataset (flags, tag, distance).
+     */
+    AtomicCache getCache() const
+    {
+      return atomic_cache.load();
+    }
+    void setCache(const AtomicCache& cache)
+    {
+      atomic_cache.store(cache);
+    }
+
+    double* values()
+    {
+      return values_.get();
+    }
+
+    const double* values() const
+    {
+      return values_.get();
+    }
+
+    void setValues(std::unique_ptr<double[]> values)
+    {
+      values_ = std::move(values);
+    }
+
+  protected:
+    mutable std::atomic<AtomicCache> atomic_cache;
+    /**
+     * \brief Helper function to modify the cache in a compare-and-swap loop.
+     *
+     * The Lambda will be called at least one time.
+     * It takes a reference to a copy of the cache and should update it
+     * (e.g. set a bit in the flags). The copy is then written back,
+     * but only if the original cache was left untouched.
+     *
+     * \param func Lambda which takes exactly one parameter, an AtomicCache Reference.
+     *
+     */
+    template <class Func>
+    void modifyCache(Func&& func) const
+    {
+      AtomicCache desired, expected = atomic_cache.load();
+      do
+      {
+        desired = expected;
+        func(desired);
+      } while (!atomic_cache.compare_exchange_weak(expected, desired));
+    }
+
+    std::unique_ptr<double[]> values_;
   };
 
   ModelBasedStateSpace(ModelBasedStateSpaceSpecification spec);

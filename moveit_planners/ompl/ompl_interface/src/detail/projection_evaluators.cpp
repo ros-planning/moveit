@@ -95,5 +95,5 @@ void ompl_interface::ProjectionEvaluatorJointValue::project(const ompl::base::St
                                                             OMPLProjection projection) const
 {
   for (std::size_t i = 0; i < variables_.size(); ++i)
-    projection(i) = state->as<ModelBasedStateSpace::StateType>()->values[variables_[i]];
+    projection(i) = state->as<ModelBasedStateSpace::StateType>()->values()[variables_[i]];
 }

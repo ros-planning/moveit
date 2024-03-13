@@ -20,6 +20,15 @@ add_library(${MOVEIT_LIB_NAME}
 )
 set_target_properties(${MOVEIT_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
 
+IF(NOT MSVC)
+  # gcc requires libatomic
+  target_link_libraries(${MOVEIT_LIB_NAME} "atomic")
+  IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64|AMD64")
+    # enable compare_exchage_16 on x64
+    target_compile_options(${MOVEIT_LIB_NAME} PUBLIC "-mcx16")
+  ENDIF()
+ENDIF()
+
 find_package(OpenMP REQUIRED)
 
 target_link_libraries(${MOVEIT_LIB_NAME} ${OMPL_LIBRARIES} ${catkin_LIBRARIES} ${Boost_LIBRARIES})

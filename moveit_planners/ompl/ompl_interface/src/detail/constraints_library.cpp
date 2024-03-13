@@ -100,7 +100,7 @@ public:
   void sampleUniformNear(ob::State* state, const ob::State* near, const double distance) override
   {
     int index = -1;
-    int tag = near->as<ModelBasedStateSpace::StateType>()->tag;
+    int tag = near->as<ModelBasedStateSpace::StateType>()->tag();
 
     if (tag >= 0)
     {
@@ -149,8 +149,8 @@ protected:
 bool interpolateUsingStoredStates(const ConstraintApproximationStateStorage* state_storage, const ob::State* from,
                                   const ob::State* to, const double t, ob::State* state)
 {
-  int tag_from = from->as<ModelBasedStateSpace::StateType>()->tag;
-  int tag_to = to->as<ModelBasedStateSpace::StateType>()->tag;
+  int tag_from = from->as<ModelBasedStateSpace::StateType>()->tag();
+  int tag_to = to->as<ModelBasedStateSpace::StateType>()->tag();
 
   if (tag_from < 0 || tag_to < 0)
     return false;
@@ -533,7 +533,7 @@ ompl::base::StateStoragePtr ompl_interface::ConstraintsLibrary::constructConstra
     {
       if (state_storage->size() < options.samples)
       {
-        temp->as<ModelBasedStateSpace::StateType>()->tag = state_storage->size();
+        temp->as<ModelBasedStateSpace::StateType>()->setTag(state_storage->size());
         state_storage->addState(temp.get());
       }
     }
@@ -610,7 +610,7 @@ ompl::base::StateStoragePtr ompl_interface::ConstraintsLibrary::constructConstra
             cass->getMetadata(i).second[j].first = state_storage->size();
             for (unsigned int k = 0; k < isteps; ++k)
             {
-              int_states[k]->as<ModelBasedStateSpace::StateType>()->tag = -1;
+              int_states[k]->as<ModelBasedStateSpace::StateType>()->setTag(-1);
               state_storage->addState(int_states[k]);
             }
             cass->getMetadata(i).second[j].second = state_storage->size();
