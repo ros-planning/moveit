@@ -1,6 +1,6 @@
 set(MOVEIT_LIB_NAME moveit_planning_scene)
 
-add_library(${MOVEIT_LIB_NAME} src/planning_scene.cpp)
+add_library(${MOVEIT_LIB_NAME} src/planning_scene.cpp src/urdf2collisionobject.cpp)
 set_target_properties(${MOVEIT_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
 
 include(GenerateExportHeader)
@@ -30,6 +30,7 @@ install(FILES ${CATKIN_DEVEL_PREFIX}/include/moveit/${MOVEIT_LIB_NAME}_export.h
         DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/moveit)
 
 if(CATKIN_ENABLE_TESTING)
+  find_package(orocos_kdl REQUIRED)
   catkin_add_gtest(test_planning_scene test/test_planning_scene.cpp)
   target_link_libraries(test_planning_scene ${MOVEIT_LIB_NAME} moveit_test_utils)
 
@@ -38,4 +39,8 @@ if(CATKIN_ENABLE_TESTING)
 
   catkin_add_gtest(test_multi_threaded test/test_multi_threaded.cpp)
   target_link_libraries(test_multi_threaded ${MOVEIT_LIB_NAME} moveit_test_utils)
+
+  catkin_add_gtest(test_urdf_to_collision_object
+                   test/test_urdf2collisionobject.cpp)
+  target_link_libraries(test_urdf_to_collision_object ${MOVEIT_LIB_NAME} moveit_test_utils ${orocos_kdl_LIBRARIES})
 endif()
