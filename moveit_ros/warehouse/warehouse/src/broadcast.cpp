@@ -37,6 +37,7 @@
 #include <moveit/warehouse/planning_scene_storage.h>
 #include <moveit/warehouse/constraints_storage.h>
 #include <moveit/warehouse/state_storage.h>
+#include <warehouse_ros/database_loader.h>
 
 #include <boost/program_options/cmdline.hpp>
 #include <boost/program_options/options_description.hpp>
@@ -92,7 +93,8 @@ int main(int argc, char** argv)
     return 2;
   }
   // Set up db
-  warehouse_ros::DatabaseConnection::Ptr conn = moveit_warehouse::loadDatabase();
+  auto db_loader = std::make_unique<warehouse_ros::DatabaseLoader>();
+  warehouse_ros::DatabaseConnection::Ptr conn = db_loader->loadDatabase();
   if (vm.count("host") && vm.count("port"))
     conn->setParams(vm["host"].as<std::string>(), vm["port"].as<std::size_t>());
   if (!conn->connect())

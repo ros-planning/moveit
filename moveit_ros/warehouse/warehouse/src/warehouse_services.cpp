@@ -35,6 +35,7 @@
 /* Author: Dan Greenwald */
 
 #include <ros/ros.h>
+#include <warehouse_ros/database_loader.h>
 #include <moveit/warehouse/state_storage.h>
 #include <moveit_msgs/SaveRobotStateToWarehouse.h>
 #include <moveit_msgs/ListRobotStatesInWarehouse.h>
@@ -150,11 +151,13 @@ int main(int argc, char** argv)
   node.param<float>("warehouse_db_connection_timeout", connection_timeout, 5.0);
   node.param<int>("warehouse_db_connection_retries", connection_retries, 5);
 
+  std::unique_ptr<warehouse_ros::DatabaseLoader> db_loader;
   warehouse_ros::DatabaseConnection::Ptr conn;
 
   try
   {
-    conn = moveit_warehouse::loadDatabase();
+    db_loader = std::make_unique<warehouse_ros::DatabaseLoader>();
+    conn = db_loader->loadDatabase();
     conn->setParams(host, port, connection_timeout);
 
     ROS_INFO("Connecting to warehouse on %s:%d", host.c_str(), port);

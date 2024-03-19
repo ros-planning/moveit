@@ -45,6 +45,7 @@
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
+#include <warehouse_ros/database_loader.h>
 #include <ros/ros.h>
 
 static const std::string ROBOT_DESCRIPTION = "robot_description";
@@ -223,7 +224,8 @@ int main(int argc, char** argv)
     return 1;
   }
   // Set up db
-  warehouse_ros::DatabaseConnection::Ptr conn = moveit_warehouse::loadDatabase();
+  auto db_loader = std::make_unique<warehouse_ros::DatabaseLoader>();
+  warehouse_ros::DatabaseConnection::Ptr conn = db_loader->loadDatabase();
   if (vm.count("host") && vm.count("port"))
     conn->setParams(vm["host"].as<std::string>(), vm["port"].as<std::size_t>());
   if (!conn->connect())
