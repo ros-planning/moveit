@@ -39,6 +39,9 @@
 
 #include <QItemSelection>
 #include <QPainter>
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include <QtCore/QRegularExpression>
+#endif
 #include <cmath>
 
 CollisionLinearModel::CollisionLinearModel(CollisionMatrixModel* src, QObject* parent) : QAbstractProxyModel(parent)
@@ -234,10 +237,15 @@ bool SortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex& s
   CollisionLinearModel* m = qobject_cast<CollisionLinearModel*>(sourceModel());
   if (!(show_all_ || m->data(m->index(source_row, 2), Qt::CheckStateRole) == Qt::Checked))
     return false;  // not accepted due to check state
-
+#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
   const QRegExp regexp = this->filterRegExp();
   if (regexp.isEmpty())
     return true;
+#else
+  const QRegularExpression regexp = this->filterRegularExpression();
+  if (!regexp.isValid())
+    return true;
+#endif
 
   return m->data(m->index(source_row, 0, source_parent), Qt::DisplayRole).toString().contains(regexp) ||
          m->data(m->index(source_row, 1, source_parent), Qt::DisplayRole).toString().contains(regexp);
