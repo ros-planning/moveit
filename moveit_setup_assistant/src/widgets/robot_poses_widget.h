@@ -281,5 +281,7 @@ private:
 
 }  // namespace moveit_setup_assistant
 
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
 // Declare std::string as metatype so we can use it in a signal
 Q_DECLARE_METATYPE(std::string)
+#endif
