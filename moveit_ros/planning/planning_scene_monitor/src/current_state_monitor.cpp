@@ -36,10 +36,10 @@
 
 #include <moveit/planning_scene_monitor/current_state_monitor.h>
 
+#include <boost/algorithm/string/join.hpp>
+#include <limits>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-
-#include <limits>
 
 constexpr char LOGNAME[] = "current_state_monitor";
 
@@ -76,17 +76,57 @@ moveit::core::RobotStatePtr CurrentStateMonitor::getCurrentState() const
   return moveit::core::RobotStatePtr(result);
 }
 
-ros::Time CurrentStateMonitor::getCurrentStateTime() const
+ros::Time CurrentStateMonitor::getCurrentStateTimeHelper(const std::string& group) const
 {
-  boost::mutex::scoped_lock slock(state_update_lock_);
-  return current_state_time_;
+  const std::vector<const moveit::core::JointModel*>* active_joints = &robot_model_->getActiveJointModels();
+  if (!group.empty())
+  {
+    const moveit::core::JointModelGroup* jmg = robot_model_->getJointModelGroup(group);
+    if (jmg)
+    {
+      active_joints = &jmg->getActiveJointModels();
+    }
+    else
+    {
+      ROS_ERROR_STREAM_NAMED(LOGNAME, "There is no group with the name " << std::quoted(group) << "!");
+      return ros::Time(0.0);
+    }
+  }
+  auto oldest_state_time = ros::Time();
+  for (const moveit::core::JointModel* joint : *active_joints)
+  {
+    auto it = joint_time_.find(joint);
+    if (it == joint_time_.end())
+    {
+      ROS_DEBUG_NAMED(LOGNAME, "Joint '%s' has never been updated", joint->getName().c_str());
+    }
+    else
+    {
+      if (!oldest_state_time.isZero())
+      {
+        oldest_state_time = std::min(oldest_state_time, it->second);
+      }
+      else
+      {
+        oldest_state_time = it->second;
+      }
+    }
+  }
+  return oldest_state_time;
 }
 
-std::pair<moveit::core::RobotStatePtr, ros::Time> CurrentStateMonitor::getCurrentStateAndTime() const
+ros::Time CurrentStateMonitor::getCurrentStateTime(const std::string& group) const
+{
+  boost::mutex::scoped_lock slock(state_update_lock_);
+  return getCurrentStateTimeHelper(group);
+}
+
+std::pair<moveit::core::RobotStatePtr, ros::Time>
+CurrentStateMonitor::getCurrentStateAndTime(const std::string& group) const
 {
   boost::mutex::scoped_lock slock(state_update_lock_);
   moveit::core::RobotState* result = new moveit::core::RobotState(robot_state_);
-  return std::make_pair(moveit::core::RobotStatePtr(result), current_state_time_);
+  return std::make_pair(moveit::core::RobotStatePtr(result), getCurrentStateTimeHelper(group));
 }
 
 std::map<std::string, double> CurrentStateMonitor::getCurrentStateValues() const
@@ -185,11 +225,29 @@ std::string CurrentStateMonitor::getMonitoredTopic() const
 }
 
 bool CurrentStateMonitor::haveCompleteStateHelper(const ros::Time& oldest_allowed_update_time,
-                                                  std::vector<std::string>* missing_joints) const
+                                                  std::vector<std::string>* missing_joints,
+                                                  const std::string& group) const
 {
-  const std::vector<const moveit::core::JointModel*>& active_joints = robot_model_->getActiveJointModels();
+  const std::vector<const moveit::core::JointModel*>* active_joints = &robot_model_->getActiveJointModels();
+  if (!group.empty())
+  {
+    const moveit::core::JointModelGroup* jmg = robot_model_->getJointModelGroup(group);
+    if (jmg)
+    {
+      active_joints = &jmg->getActiveJointModels();
+    }
+    else
+    {
+      ROS_ERROR_STREAM_NAMED(LOGNAME, "There is no group with the name "
+                                          << std::quoted(group)
+                                          << ". All joints of the group are considered to be missing!");
+      if (missing_joints)
+        *missing_joints = robot_model_->getActiveJointModelNames();
+      return false;
+    }
+  }
   boost::mutex::scoped_lock slock(state_update_lock_);
-  for (const moveit::core::JointModel* joint : active_joints)
+  for (const moveit::core::JointModel* joint : *active_joints)
   {
     std::map<const moveit::core::JointModel*, ros::Time>::const_iterator it = joint_time_.find(joint);
     if (it == joint_time_.end())
@@ -203,7 +261,6 @@ bool CurrentStateMonitor::haveCompleteStateHelper(const ros::Time& oldest_allowe
     }
     else
       continue;
-
     if (missing_joints)
       missing_joints->push_back(joint->getName());
     else
@@ -217,9 +274,8 @@ bool CurrentStateMonitor::waitForCurrentState(const ros::Time t, double wait_tim
   ros::WallTime start = ros::WallTime::now();
   ros::WallDuration elapsed(0, 0);
   ros::WallDuration timeout(wait_time);
-
   boost::mutex::scoped_lock lock(state_update_lock_);
-  while (current_state_time_ < t)
+  while (getCurrentStateTimeHelper() < t)
   {
     state_update_condition_.wait_for(lock, boost::chrono::nanoseconds((timeout - elapsed).toNSec()));
     elapsed = ros::WallTime::now() - start;
@@ -250,29 +306,21 @@ bool CurrentStateMonitor::waitForCompleteState(double wait_time) const
 
 bool CurrentStateMonitor::waitForCompleteState(const std::string& group, double wait_time) const
 {
-  if (waitForCompleteState(wait_time))
-    return true;
-  bool ok = true;
-
-  // check to see if we have a fully known state for the joints we want to record
-  std::vector<std::string> missing_joints;
-  if (!haveCompleteState(missing_joints))
+  double slept_time = 0.0;
+  double sleep_step_s = std::min(0.05, wait_time / 10.0);
+  ros::Duration sleep_step(sleep_step_s);
+  while (!haveCompleteState(group) && slept_time < wait_time)
   {
-    const moveit::core::JointModelGroup* jmg = robot_model_->getJointModelGroup(group);
-    if (jmg)
-    {
-      std::set<std::string> mj;
-      mj.insert(missing_joints.begin(), missing_joints.end());
-      const std::vector<std::string>& names = jmg->getJointModelNames();
-      bool ok = true;
-      for (std::size_t i = 0; ok && i < names.size(); ++i)
-        if (mj.find(names[i]) != mj.end())
-          ok = false;
-    }
-    else
-      ok = false;
+    sleep_step.sleep();
+    slept_time += sleep_step_s;
   }
-  return ok;
+  std::vector<std::string> missing_joints;
+  if (!haveCompleteState(missing_joints, group))
+  {
+    ROS_ERROR_STREAM_NAMED(LOGNAME, std::quoted(group) << " has missing joints: " << boost::join(missing_joints, ","));
+    return false;
+  }
+  return true;
 }
 
 void CurrentStateMonitor::jointStateCallback(const sensor_msgs::JointStateConstPtr& joint_state)
@@ -291,7 +339,6 @@ void CurrentStateMonitor::jointStateCallback(const sensor_msgs::JointStateConstP
     boost::mutex::scoped_lock _(state_update_lock_);
     // read the received values, and update their time stamps
     std::size_t n = joint_state->name.size();
-    current_state_time_ = std::max(current_state_time_, joint_state->header.stamp);
     for (std::size_t i = 0; i < n; ++i)
     {
       const moveit::core::JointModel* jm = robot_model_->getJointModel(joint_state->name[i]);
@@ -312,7 +359,6 @@ void CurrentStateMonitor::jointStateCallback(const sensor_msgs::JointStateConstP
                                            << "' is not newer than the previous state. Assuming your rosbag looped.");
         joint_time_.clear();
         joint_time_[jm] = joint_state->header.stamp;
-        current_state_time_ = joint_state->header.stamp;
       }
 
       if (robot_state_.getJointPositions(jm)[0] != joint_state->position[i])
