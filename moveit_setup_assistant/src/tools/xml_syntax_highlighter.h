@@ -61,5 +61,9 @@ private:
   using Rules = std::map<int, Rule>;
   Rules rules;
 
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+  Rules::const_iterator highlight(Rules::const_iterator active, QStringView text, int start, bool search_end, int& end);
+#else
   Rules::const_iterator highlight(Rules::const_iterator active, QStringRef text, int start, bool search_end, int& end);
+#endif
 };
