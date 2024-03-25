@@ -39,7 +39,7 @@
 
 #include <QItemSelection>
 #include <QPainter>
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 12, 0))
 #include <QtCore/QRegularExpression>
 #endif
 #include <cmath>
@@ -237,7 +237,7 @@ bool SortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex& s
   CollisionLinearModel* m = qobject_cast<CollisionLinearModel*>(sourceModel());
   if (!(show_all_ || m->data(m->index(source_row, 2), Qt::CheckStateRole) == Qt::Checked))
     return false;  // not accepted due to check state
-#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
+#if (QT_VERSION < QT_VERSION_CHECK(5, 12, 0))
   const QRegExp regexp = this->filterRegExp();
   if (regexp.isEmpty())
     return true;
