@@ -47,13 +47,90 @@
 #include <moveit/collision_plugin_loader/collision_plugin_loader.h>
 #include <moveit_msgs/GetPlanningScene.h>
 #include <boost/noncopyable.hpp>
-#include <boost/thread/shared_mutex.hpp>
 #include <boost/thread/recursive_mutex.hpp>
 #include <memory>
+#include <mutex>
+#include <shared_mutex>
+#include <chrono>
 
 namespace planning_scene_monitor
 {
 MOVEIT_CLASS_FORWARD(PlanningSceneMonitor);  // Defines PlanningSceneMonitorPtr, ConstPtr, WeakPtr... etc
+
+class TryLockTimeoutException : public std::exception
+{
+public:
+  TryLockTimeoutException(const std::string& error_message) noexcept : error_message_(error_message)
+  {
+  }
+
+  const char* what() const noexcept override
+  {
+    return error_message_.c_str();
+  }
+
+private:
+  const std::string error_message_;
+};
+
+using TimedDestructCallback =
+    std::function<void(const std::string&, const ros::Time&, const ros::Time&, const ros::Time&)>;
+template <typename Lock>
+class TimedLock
+{
+public:
+  TimedLock(const std::string& source, std::shared_timed_mutex& mtx,
+            std::chrono::milliseconds timeout = std::chrono::milliseconds::zero())
+    : source_(source), lock_(mtx, std::defer_lock), timeout_(timeout)
+  {
+    construct_time_ = ros::Time::now();
+    lock();
+  }
+
+  ~TimedLock()
+  {
+    if (destruct_cb_)
+      destruct_cb_(source_, construct_time_, lock_time_, ros::Time::now());
+  }
+
+  TimedLock(TimedLock&&) = default;  // forces a move constructor even with custom destructor
+
+  void onDestruct(TimedDestructCallback destruct_cb)
+  {
+    // std::move() transfers ownership of the callback to TimedLock
+    destruct_cb_ = std::move(destruct_cb);
+  }
+
+  void lock()
+  {
+    if (lock_.owns_lock())
+      return;
+    else if (timeout_ == std::chrono::milliseconds::zero())
+      lock_.lock();
+    else if (!lock_.try_lock_for(timeout_))
+      throw TryLockTimeoutException("Timeout trying to lock PlanningSceneMonitor from '" + source_ + "'");
+
+    lock_time_ = ros::Time::now();
+  }
+
+  void unlock()
+  {
+    if (lock_.owns_lock())
+      lock_.unlock();
+  }
+
+private:
+  const std::string source_;
+  Lock lock_;
+  std::chrono::milliseconds timeout_;
+  TimedDestructCallback destruct_cb_;
+
+  ros::Time construct_time_;
+  ros::Time lock_time_;
+};
+
+using UniqueTimedLock = TimedLock<std::unique_lock<std::shared_timed_mutex>>;
+using SharedTimedLock = TimedLock<std::shared_lock<std::shared_timed_mutex>>;
 
 /**
  * @brief PlanningSceneMonitor
@@ -394,18 +471,36 @@ public:
   bool waitForCurrentRobotState(const ros::Time& t, double wait_time = 1.);
 
   /** \brief Lock the scene for reading (multiple threads can lock for reading at the same time) */
-  void lockSceneRead();
+  [[deprecated("Use acquireSharedLock() instead")]] void lockSceneRead();
 
   /** \brief Unlock the scene from reading (multiple threads can lock for reading at the same time) */
-  void unlockSceneRead();
+  [[deprecated("Use acquireSharedLock() instead")]] void unlockSceneRead();
 
   /** \brief Lock the scene for writing (only one thread can lock for writing and no other thread can lock for reading)
    */
-  void lockSceneWrite();
+  [[deprecated("Use acquireUniqueLock() instead")]] void lockSceneWrite();
 
   /** \brief Lock the scene from writing (only one thread can lock for writing and no other thread can lock for reading)
    */
-  void unlockSceneWrite();
+  [[deprecated("Use acquireUniqueLock() instead")]] void unlockSceneWrite();
+
+  /** \brief Exclusive mutex locking for safely writing changes to the planning scene
+   *
+   * @param source The name of the source requesting the lock used for diagnostics
+   * @param timeout An optional duration that locking the unique mutex is allowed to take
+   * @throws planning_scene_monitor::TryLockTimeoutException in case of a lock timeout
+   */
+  UniqueTimedLock acquireUniqueLock(const std::string& source,
+                                    std::chrono::milliseconds timeout = std::chrono::milliseconds::zero());
+
+  /** \brief Shared mutex locking for safely reading the current version of the planning scene
+   *
+   * @param source The name of the source requesting the lock used for diagnostics
+   * @param timeout An optional duration that locking the shared mutex is allowed to take
+   * @throws planning_scene_monitor::TryLockTimeoutException in case of a lock timeout
+   */
+  SharedTimedLock acquireSharedLock(const std::string& source,
+                                    std::chrono::milliseconds timeout = std::chrono::milliseconds::zero());
 
   void clearOctomap();
 
@@ -465,7 +560,7 @@ protected:
   planning_scene::PlanningScenePtr scene_;
   planning_scene::PlanningSceneConstPtr scene_const_;
   planning_scene::PlanningScenePtr parent_scene_;  /// if diffs are monitored, this is the pointer to the parent scene
-  boost::shared_mutex scene_update_mutex_;         /// mutex for stored scene
+  std::shared_timed_mutex scene_update_mutex_;     /// mutex for stored scene
   ros::Time last_update_time_;                     /// Last time the state was updated
   ros::Time last_robot_motion_time_;               /// Last time the robot has moved
 
@@ -497,7 +592,7 @@ protected:
   double publish_planning_scene_frequency_;
   SceneUpdateType publish_update_types_;
   SceneUpdateType new_scene_update_;
-  boost::condition_variable_any new_scene_update_condition_;
+  std::condition_variable_any new_scene_update_condition_;
 
   // subscribe to various sources of data
   ros::Subscriber planning_scene_subscriber_;
@@ -517,12 +612,12 @@ protected:
   CurrentStateMonitorPtr current_state_monitor_;
 
   typedef std::map<const moveit::core::LinkModel*,
-                   std::vector<std::pair<occupancy_map_monitor::ShapeHandle, std::size_t> > >
+                   std::vector<std::pair<occupancy_map_monitor::ShapeHandle, std::size_t>>>
       LinkShapeHandles;
   using AttachedBodyShapeHandles = std::map<const moveit::core::AttachedBody*,
-                                            std::vector<std::pair<occupancy_map_monitor::ShapeHandle, std::size_t> > >;
+                                            std::vector<std::pair<occupancy_map_monitor::ShapeHandle, std::size_t>>>;
   using CollisionBodyShapeHandles =
-      std::map<std::string, std::vector<std::pair<occupancy_map_monitor::ShapeHandle, const Eigen::Isometry3d*> > >;
+      std::map<std::string, std::vector<std::pair<occupancy_map_monitor::ShapeHandle, const Eigen::Isometry3d*>>>;
 
   LinkShapeHandles link_shape_handles_;
   AttachedBodyShapeHandles attached_body_shape_handles_;
@@ -531,8 +626,8 @@ protected:
 
   /// lock access to update_callbacks_
   boost::recursive_mutex update_lock_;
-  std::vector<boost::function<void(SceneUpdateType)> > update_callbacks_;  /// List of callbacks to trigger when updates
-                                                                           /// are received
+  std::vector<boost::function<void(SceneUpdateType)>> update_callbacks_;  /// List of callbacks to trigger when updates
+                                                                          /// are received
 
 private:
   void getUpdatedFrameTransforms(std::vector<geometry_msgs::TransformStamped>& transforms);
@@ -552,6 +647,10 @@ private:
   // Callback for requesting the full planning scene via service
   bool getPlanningSceneServiceCallback(moveit_msgs::GetPlanningScene::Request& req,
                                        moveit_msgs::GetPlanningScene::Response& res);
+
+  // Callback for publishing shared and unique mutex lock/unlock events for diagnostics
+  void publishLockDiagnostics(const std::string& lock_source, const std::string& lock_type, const ros::Time& start_time,
+                              const ros::Duration& time_to_lock, const ros::Duration& locked_time);
 
   // Lock for state_update_pending_ and dt_state_update_
   boost::mutex state_pending_mutex_;
@@ -585,36 +684,26 @@ private:
 
   class DynamicReconfigureImpl;
   DynamicReconfigureImpl* reconfigure_impl_;
+
+  bool lock_status_diagnostics_enabled_;
+  ros::Publisher lock_status_pub_;
 };
 
-/** \brief This is a convenience class for obtaining access to an
- *         instance of a locked PlanningScene.
+/** \brief This is the base class of LockedPlanningSceneRW and
+ *         LockedPlanningSceneRO for providing access to the instance of a
+ *         locked PlanningScene.
  *
- * Instances of this class can be used almost exactly like instances
- * of a PlanningScenePtr because of the typecast operator and
- * "operator->" functions.  Therefore you will often see code like this:
- * @code
- *   planning_scene_monitor::LockedPlanningSceneRO ls(planning_scene_monitor);
- *   moveit::core::RobotModelConstPtr model = ls->getRobotModel();
- * @endcode
-
- * The function "getRobotModel()" is a member of PlanningScene and not
- * a member of this class.  However because of the "operator->" here
- * which returns a PlanningSceneConstPtr, this works.
- *
- * Any number of these "ReadOnly" locks can exist at a given time.
- * The intention is that users which only need to read from the
- * PlanningScene will use these and will thus not interfere with each
- * other.
- *
- * @see LockedPlanningSceneRW */
-class LockedPlanningSceneRO
+ * @see LockedPlanningSceneRW, LockedPlanningSceneRO */
+class LockedPlanningScene
 {
 public:
-  LockedPlanningSceneRO(const PlanningSceneMonitorPtr& planning_scene_monitor)
+  LockedPlanningScene(const PlanningSceneMonitorPtr& planning_scene_monitor)
     : planning_scene_monitor_(planning_scene_monitor)
   {
-    initialize(true);
+    if (planning_scene_monitor_ == nullptr)
+    {
+      throw std::invalid_argument("LockedPlanningScene cannot be constructed with nullptr PlanningSceneMonitorPtr");
+    }
   }
 
   const PlanningSceneMonitorPtr& getPlanningSceneMonitor()
@@ -637,46 +726,47 @@ public:
     return static_cast<const PlanningSceneMonitor*>(planning_scene_monitor_.get())->getPlanningScene();
   }
 
-protected:
-  LockedPlanningSceneRO(const PlanningSceneMonitorPtr& planning_scene_monitor, bool read_only)
-    : planning_scene_monitor_(planning_scene_monitor)
-  {
-    initialize(read_only);
-  }
-
-  void initialize(bool read_only)
-  {
-    if (planning_scene_monitor_)
-      lock_ = std::make_shared<SingleUnlock>(planning_scene_monitor_.get(), read_only);
-  }
-
-  MOVEIT_STRUCT_FORWARD(SingleUnlock);
-
-  // we use this struct so that lock/unlock are called only once
-  // even if the LockedPlanningScene instance is copied around
-  struct SingleUnlock
-  {
-    SingleUnlock(PlanningSceneMonitor* planning_scene_monitor, bool read_only)
-      : planning_scene_monitor_(planning_scene_monitor), read_only_(read_only)
-    {
-      if (read_only)
-        planning_scene_monitor_->lockSceneRead();
-      else
-        planning_scene_monitor_->lockSceneWrite();
-    }
-    ~SingleUnlock()
-    {
-      if (read_only_)
-        planning_scene_monitor_->unlockSceneRead();
-      else
-        planning_scene_monitor_->unlockSceneWrite();
-    }
-    PlanningSceneMonitor* planning_scene_monitor_;
-    bool read_only_;
-  };
-
   PlanningSceneMonitorPtr planning_scene_monitor_;
-  SingleUnlockPtr lock_;
+};
+
+/** \brief This is a convenience class for obtaining access to an
+ *         instance of a locked PlanningScene.
+ *
+ * Instances of this class can be used almost exactly like instances
+ * of a PlanningScenePtr because of the typecast operator and
+ * "operator->" functions.  Therefore you will often see code like this:
+ * @code
+ *   planning_scene_monitor::LockedPlanningSceneRO ls(planning_scene_monitor);
+ *   moveit::core::RobotModelConstPtr model = ls->getRobotModel();
+ * @endcode
+
+ * The function "getRobotModel()" is a member of PlanningScene and not
+ * a member of this class.  However because of the "operator->" here
+ * which returns a PlanningSceneConstPtr, this works.
+ *
+ * Any number of these "ReadOnly" locks can exist at a given time.
+ * The intention is that users which only need to read from the
+ * PlanningScene will use these and will thus not interfere with each
+ * other.
+ *
+ * The constructor supports setting an optional allowed timeout duration for
+ * locking the shared mutex. In case of a timeout, the constructor throws a
+ * planning_scene_monitor::TryLockTimeoutException.
+ *
+ * @see LockedPlanningSceneRW */
+class LockedPlanningSceneRO : public LockedPlanningScene
+{
+public:
+  LockedPlanningSceneRO(const PlanningSceneMonitorPtr& planning_scene_monitor,
+                        std::chrono::milliseconds timeout = std::chrono::milliseconds::zero())
+    : LockedPlanningScene(planning_scene_monitor)
+  {
+    slock_ =
+        std::make_shared<SharedTimedLock>(planning_scene_monitor_->acquireSharedLock("LockedPlanningSceneRO", timeout));
+  }
+
+private:
+  std::shared_ptr<SharedTimedLock> slock_;
 };
 
 /** \brief This is a convenience class for obtaining access to an
@@ -699,13 +789,20 @@ protected:
  * will use these, preventing other writers and readers from locking
  * the same PlanningScene at the same time.
  *
+ * The constructor supports setting an optional allowed timeout duration for
+ * locking the unique mutex. In case of a timeout, the constructor throws a
+ * planning_scene_monitor::TryLockTimeoutException.
+ *
  * @see LockedPlanningSceneRO */
-class LockedPlanningSceneRW : public LockedPlanningSceneRO
+class LockedPlanningSceneRW : public LockedPlanningScene
 {
 public:
-  LockedPlanningSceneRW(const PlanningSceneMonitorPtr& planning_scene_monitor)
-    : LockedPlanningSceneRO(planning_scene_monitor, false)
+  LockedPlanningSceneRW(const PlanningSceneMonitorPtr& planning_scene_monitor,
+                        std::chrono::milliseconds timeout = std::chrono::milliseconds::zero())
+    : LockedPlanningScene(planning_scene_monitor)
   {
+    ulock_ =
+        std::make_shared<UniqueTimedLock>(planning_scene_monitor_->acquireUniqueLock("LockedPlanningSceneRW", timeout));
   }
 
   operator const planning_scene::PlanningScenePtr &()
@@ -717,5 +814,8 @@ public:
   {
     return planning_scene_monitor_->getPlanningScene();
   }
+
+private:
+  std::shared_ptr<UniqueTimedLock> ulock_;
 };
 }  // namespace planning_scene_monitor
