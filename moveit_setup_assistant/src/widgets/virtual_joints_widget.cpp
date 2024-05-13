@@ -104,8 +104,8 @@ QWidget* VirtualJointsWidget::createContentsWidget()
   data_table_->setColumnCount(4);
   data_table_->setSortingEnabled(true);
   data_table_->setSelectionBehavior(QAbstractItemView::SelectRows);
-  connect(data_table_, SIGNAL(cellDoubleClicked(int, int)), this, SLOT(editDoubleClicked(int, int)));
-  connect(data_table_, SIGNAL(cellClicked(int, int)), this, SLOT(previewClicked(int, int)));
+  connect(data_table_, &QTableWidget::cellDoubleClicked, this, &VirtualJointsWidget::editDoubleClicked);
+  connect(data_table_, &QTableWidget::cellClicked, this, &VirtualJointsWidget::previewClicked);
   layout->addWidget(data_table_);
 
   // Set header labels
@@ -128,13 +128,13 @@ QWidget* VirtualJointsWidget::createContentsWidget()
   btn_edit_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
   btn_edit_->setMaximumWidth(300);
   btn_edit_->hide();  // show once we know if there are existing poses
-  connect(btn_edit_, SIGNAL(clicked()), this, SLOT(editSelected()));
+  connect(btn_edit_, &QPushButton::clicked, this, &VirtualJointsWidget::editSelected);
   controls_layout->addWidget(btn_edit_);
   controls_layout->setAlignment(btn_edit_, Qt::AlignRight);
 
   // Delete Selected Button
   btn_delete_ = new QPushButton("&Delete Selected", this);
-  connect(btn_delete_, SIGNAL(clicked()), this, SLOT(deleteSelected()));
+  connect(btn_delete_, &QPushButton::clicked, this, &VirtualJointsWidget::deleteSelected);
   controls_layout->addWidget(btn_delete_);
   controls_layout->setAlignment(btn_delete_, Qt::AlignRight);
 
@@ -142,7 +142,7 @@ QWidget* VirtualJointsWidget::createContentsWidget()
   QPushButton* btn_add = new QPushButton("&Add Virtual Joint", this);
   btn_add->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
   btn_add->setMaximumWidth(300);
-  connect(btn_add, SIGNAL(clicked()), this, SLOT(showNewScreen()));
+  connect(btn_add, &QPushButton::clicked, this, &VirtualJointsWidget::showNewScreen);
   controls_layout->addWidget(btn_add);
   controls_layout->setAlignment(btn_add, Qt::AlignRight);
 
@@ -187,8 +187,8 @@ QWidget* VirtualJointsWidget::createEditWidget()
   joint_type_field_ = new QComboBox(this);
   joint_type_field_->setEditable(false);
   loadJointTypesComboBox();  // only do this once
-  // connect( joint_type_field_, SIGNAL( currentIndexChanged( const QString & ) ),
-  //         this, SLOT( loadJoinSliders( const QString & ) ) );
+  // connect( joint_type_field_, &QComboBox::currentTextChanged,
+  //         this, &VirtualJointsWidget::loadJoinSliders);
   form_layout->addRow("Joint Type:", joint_type_field_);
 
   layout->addLayout(form_layout);
@@ -204,14 +204,14 @@ QWidget* VirtualJointsWidget::createEditWidget()
   // Save
   QPushButton* btn_save = new QPushButton("&Save", this);
   btn_save->setMaximumWidth(200);
-  connect(btn_save, SIGNAL(clicked()), this, SLOT(doneEditing()));
+  connect(btn_save, &QPushButton::clicked, this, &VirtualJointsWidget::doneEditing);
   controls_layout->addWidget(btn_save);
   controls_layout->setAlignment(btn_save, Qt::AlignRight);
 
   // Cancel
   QPushButton* btn_cancel = new QPushButton("&Cancel", this);
   btn_cancel->setMaximumWidth(200);
-  connect(btn_cancel, SIGNAL(clicked()), this, SLOT(cancelEditing()));
+  connect(btn_cancel, &QPushButton::clicked, this, &VirtualJointsWidget::cancelEditing);
   controls_layout->addWidget(btn_cancel);
   controls_layout->setAlignment(btn_cancel, Qt::AlignRight);
 
