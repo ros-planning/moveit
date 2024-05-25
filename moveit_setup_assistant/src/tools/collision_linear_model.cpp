@@ -39,9 +39,7 @@
 
 #include <QItemSelection>
 #include <QPainter>
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 12, 0))
 #include <QtCore/QRegularExpression>
-#endif
 #include <cmath>
 
 CollisionLinearModel::CollisionLinearModel(CollisionMatrixModel* src, QObject* parent) : QAbstractProxyModel(parent)
