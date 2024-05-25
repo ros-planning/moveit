@@ -280,7 +280,11 @@ bool SortFilterProxyModel::lessThan(const QModelIndex& src_left, const QModelInd
       continue;
 
     bool smaller{};
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     switch (value_left.type())
+#else
+    switch (value_left.typeId())
+#endif
     {
       case QVariant::Int:
         smaller = value_left.toInt() < value_right.toInt();
