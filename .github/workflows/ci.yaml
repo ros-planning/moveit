@@ -32,11 +32,16 @@ jobs:
             CLANG_TIDY: pedantic
           - IMAGE: master-ci # ROS Melodic with all dependencies required for master
             CATKIN_LINT: true
+          - IMAGE: jammy-ci
+            NAME: " Qt6"
+            UPSTREAM_WORKSPACE: github:ros-visualization/rviz#noetic-devel
+            UPSTREAM_CMAKE_ARGS: -DRVIZ_QT_VERSIONS=6
     env:
       CXXFLAGS: -Wall -Wextra -Wwrite-strings -Wunreachable-code -Wpointer-arith -Wredundant-decls
-      CLANG_TIDY_ARGS: --fix --fix-errors --format-style=file
+      CLANG_TIDY_ARGS: -quiet -export-fixes ${{ github.workspace }}/.work/clang-tidy-fixes.yaml
+
       DOCKER_IMAGE: moveit/moveit:${{ matrix.env.IMAGE }}
-      UPSTREAM_WORKSPACE: .github/workflows/upstream.rosinstall
+      UPSTREAM_WORKSPACE: .github/workflows/upstream.rosinstall ${{ matrix.env.UPSTREAM_WORKSPACE }}
       TARGET_WORKSPACE: $TARGET_REPO_PATH github:moveit/moveit_resources#master
       DOWNSTREAM_WORKSPACE: .github/workflows/downstream.rosinstall
       # Pull any updates to the upstream workspace (after restoring it from cache)
@@ -49,8 +54,8 @@ jobs:
       # Compile CCOV with Debug. Enable -Werror.
       TARGET_CMAKE_ARGS: >
         -DCMAKE_BUILD_TYPE=${{ matrix.env.CCOV && 'Debug' || 'Release'}}
-        -DCMAKE_CXX_FLAGS="-Werror $CXXFLAGS${{ matrix.env.CCOV && ' --coverage -O2 -fno-omit-frame-pointer'}}"
-      UPSTREAM_CMAKE_ARGS: "-DCMAKE_CXX_FLAGS=''"
+        -DCMAKE_CXX_FLAGS="-Werror $CXXFLAGS ${{ matrix.env.TARGET_CXXFLAGS }} ${{ matrix.env.CCOV && '--coverage -O2 -fno-omit-frame-pointer'}}"
+      UPSTREAM_CMAKE_ARGS: "-DCMAKE_CXX_FLAGS='' ${{ matrix.env.UPSTREAM_CMAKE_ARGS }}"
       DOWNSTREAM_CMAKE_ARGS: -DCMAKE_CXX_FLAGS="-Wall -Wextra"
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       BASEDIR: ${{ github.workspace }}/.work
@@ -63,8 +68,12 @@ jobs:
       BUILDER: ${{ matrix.env.BUILDER || 'catkin_tools' }}
       CC: ${{ matrix.env.CLANG_TIDY && 'clang' }}
       CXX: ${{ matrix.env.CLANG_TIDY && 'clang++' }}
+      # forward matrix.env
+      CATKIN_LINT: ${{ matrix.env.CATKIN_LINT }}
+      CLANG_TIDY: ${{ matrix.env.CLANG_TIDY }}
 
-    name: "${{ matrix.env.IMAGE }}${{ matrix.env.CATKIN_LINT && ' + catkin_lint' || ''}}${{ matrix.env.CCOV && ' + ccov' || ''}}${{ matrix.env.IKFAST_TEST && ' + ikfast' || ''}}${{ matrix.env.CLANG_TIDY && (github.event_name != 'workflow_dispatch' && ' + clang-tidy (delta)' || ' + clang-tidy (all)') || '' }}"
+
+    name: "${{ matrix.env.IMAGE }}${{ matrix.env.NAME }}${{ matrix.env.CATKIN_LINT && ' + catkin_lint' || ''}}${{ matrix.env.CCOV && ' + ccov' || ''}}${{ matrix.env.IKFAST_TEST && ' + ikfast' || ''}}${{ matrix.env.CLANG_TIDY && (github.event_name != 'workflow_dispatch' && ' + clang-tidy (delta)' || ' + clang-tidy (all)') || '' }}"
     runs-on: ubuntu-20.04
     steps:
       - name: "Free up disk space"
@@ -131,8 +140,7 @@ jobs:
           ROS_DISTRO: noetic
       - id: ici
         name: Run industrial_ci
-        uses: ros-industrial/industrial_ci@master
-        env: ${{ matrix.env }}
+        uses: rhaschke/industrial_ci@master
 
       - name: Upload test artifacts (on failure)
         uses: actions/upload-artifact@v4
@@ -152,12 +160,14 @@ jobs:
         if: always() && matrix.env.CCOV && steps.ici.outputs.target_test_results == '0'
         with:
           files: ${{ env.BASEDIR }}/target_ws/coverage.info
-      - name: Upload clang-tidy changes
-        uses: rhaschke/upload-git-patch-action@main
-        if: always() && matrix.env.CLANG_TIDY
+
+      - name: Upload clang-tidy fixes (on failure)
+        uses: actions/upload-artifact@v4
+        if: failure() && steps.ici.outputs.clang_tidy_checks
         with:
-          name: clang-tidy
-          path: ${{ env.BASEDIR }}/target_ws/src/$(basename $(pwd))
+          name: clang-tidy-fixes.yaml
+          path: ${{ env.BASEDIR }}/clang-tidy-fixes.yaml
+
       - name: Prepare target_ws for cache
         if: always() && !matrix.env.CCOV
         run: |
