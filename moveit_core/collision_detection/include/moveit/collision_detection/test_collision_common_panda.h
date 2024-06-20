@@ -216,6 +216,12 @@ TYPED_TEST_P(CollisionDetectorPandaTest, PaddingTest)
   this->cenv_->setLinkPadding("panda_hand", 0.0);
   this->cenv_->checkRobotCollision(req, res, *this->robot_state_, *this->acm_);
   ASSERT_FALSE(res.collision);
+  res.clear();
+
+  // The arm should not be in collision
+  req.group_name = "panda_arm";
+  this->cenv_->checkRobotCollision(req, res, *this->robot_state_, *this->acm_);
+  ASSERT_FALSE(res.collision);
 }
 
 /** \brief Tests the distance reporting with the robot itself */
