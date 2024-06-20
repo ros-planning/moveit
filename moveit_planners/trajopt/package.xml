@@ -25,6 +25,8 @@
   <depend>rosparam_shortcuts</depend>
   <depend>trajopt</depend>
 
+  <test_depend>rostest</test_depend>
+
   <export>
     <moveit_core plugin="${prefix}/trajopt_interface_plugin_description.xml"/>
   </export>

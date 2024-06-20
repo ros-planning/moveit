@@ -2,6 +2,7 @@
 #include <trajopt/common.hpp>
 #include <trajopt/json_marshal.hpp>
 #include <trajopt_sco/optimizers.hpp>
+#include <trajopt_utils/utils.hpp>
 
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/planning_scene/planning_scene.h>
@@ -51,6 +52,9 @@ MOVEIT_CLASS_FORWARD(CartPoseTermInfo);  // Defines CartPoseTermInfoPtr, ConstPt
 
 struct JointVelTermInfo;
 MOVEIT_CLASS_FORWARD(JointVelTermInfo);  // Defines JointVelTermInfoPtr, ConstPtr, WeakPtr... etc
+
+struct CollisionTermInfo;
+MOVEIT_CLASS_FORWARD(CollisionTermInfo);  // Defines JointVelTermInfoPtr, ConstPtr, WeakPtr... etc
 
 struct ProblemInfo;
 TrajOptProblemPtr ConstructProblem(const ProblemInfo&);
@@ -220,9 +224,13 @@ public:
   {
     return dof_;
   }
-  planning_scene::PlanningSceneConstPtr GetPlanningScene()
+  planning_scene::PlanningSceneConstPtr& GetPlanningScene()
   {
     return planning_scene_;
+  }
+  std::string GetPlanningGroup()
+  {
+    return planning_group_;
   }
   void SetInitTraj(const trajopt::TrajArray& x)
   {
@@ -358,6 +366,36 @@ struct JointVelTermInfo : public TermInfo
   {
     TermInfoPtr out(new JointVelTermInfo());
     return out;
+  }
+};
+
+struct CollisionTermInfo : public TermInfo
+{
+  /** @brief first_step and last_step are inclusive */
+  int first_step, last_step;
+
+  /** @brief Indicate if continuous collision checking should be used. */
+  bool continuous;
+
+  /** @brief for continuous-time penalty, use swept-shape between timesteps t and t+gap */
+  /** @brief (gap=1 by default) */
+  int gap;
+
+  /** @brief Contains distance penalization data: Safety Margin, Coeff used during */
+  /** @brief optimization, etc. */
+  std::vector<util::SafetyMarginData::Ptr> info;
+
+  /** @brief Converts term info into cost/constraint and adds it to trajopt problem */
+  void addObjectiveTerms(TrajOptProblem& prob) override;
+
+  static TermInfoPtr create()
+  {
+    TermInfoPtr out(new CollisionTermInfo());
+    return out;
+  }
+
+  CollisionTermInfo() : TermInfo(TT_COST | TT_CNT)
+  {
   }
 };
 

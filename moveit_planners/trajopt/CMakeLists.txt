@@ -42,6 +42,7 @@ add_library(
   ${PROJECT_NAME}
   src/trajopt_interface.cpp
   src/problem_description.cpp
+  src/collision_terms.cpp
   src/kinematic_terms.cpp
   src/trajopt_planning_context.cpp
 )
@@ -72,7 +73,7 @@ target_link_libraries(moveit_trajopt_planner_plugin ${PROJECT_NAME} ${catkin_LIB
 # Mark executables and/or libraries for installation
 install(
   TARGETS
-    moveit_trajopt_planner_plugin
+    ${PROJECT_NAME} moveit_trajopt_planner_plugin
   ARCHIVE DESTINATION
     ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION
