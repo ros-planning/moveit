@@ -51,6 +51,8 @@
 #include <rviz/properties/ros_topic_property.h>
 #include <rviz/properties/enum_property.h>
 #include <rviz/properties/color_property.h>
+#include <rviz/properties/vector_property.h>
+#include <rviz/properties/quaternion_property.h>
 #include <rviz/display_context.h>
 #include <rviz/frame_manager.h>
 #include <rviz/panel_dock_widget.h>
@@ -142,6 +144,16 @@ MotionPlanningDisplay::MotionPlanningDisplay()
                               "Specifies scale of the interactive marker overlayed on the robot. 0 is auto scale.",
                               plan_category_, SLOT(changedQueryMarkerScale()), this);
   query_marker_scale_property_->setMin(0.0f);
+
+  query_marker_offset_category_ = new rviz::Property("Interactive Marker Offset", QVariant(), "", plan_category_, nullptr, this);
+  query_marker_offset_position_property_ =
+      new rviz::VectorProperty("Position", Ogre::Vector3(0, 0, 0),
+                               "Specifies the interactive marker offset position.",
+                               query_marker_offset_category_, SLOT(changedQueryMarkerOffset()), this);
+  query_marker_offset_orientation_property_ =
+      new rviz::QuaternionProperty("Orientation", Ogre::Quaternion(1, 0, 0, 0),
+                               "Specifies the interactive marker offset orientation.",
+                               query_marker_offset_category_, SLOT(changedQueryMarkerOffset()), this);
 
   query_start_color_property_ =
       new rviz::ColorProperty("Start State Color", QColor(0, 255, 0), "The highlight color for the start state",
@@ -816,11 +828,28 @@ void MotionPlanningDisplay::publishInteractiveMarkers(bool pose_update)
     }
     else
     {
+      geometry_msgs::Pose pose;
+      const auto position = query_marker_offset_position_property_->getVector();
+      pose.position.x = position.x;
+      pose.position.y = position.y;
+      pose.position.z = position.z;
+      const auto orientation = query_marker_offset_orientation_property_->getQuaternion();
+      pose.orientation.w = orientation.w;
+      pose.orientation.x = orientation.x;
+      pose.orientation.y = orientation.y;
+      pose.orientation.z = orientation.z;
+      for (const auto &eef : robot_interaction_->getActiveEndEffectors())
+      {
+        query_goal_state_->setPoseOffset(eef, pose);
+        query_start_state_->setPoseOffset(eef, pose);
+      }
+
       robot_interaction_->clearInteractiveMarkers();
       if (query_start_state_property_->getBool())
         robot_interaction_->addInteractiveMarkers(query_start_state_, query_marker_scale_property_->getFloat());
       if (query_goal_state_property_->getBool())
         robot_interaction_->addInteractiveMarkers(query_goal_state_, query_marker_scale_property_->getFloat());
+
       robot_interaction_->publishInteractiveMarkers();
     }
     if (frame_)
@@ -849,6 +878,18 @@ void MotionPlanningDisplay::changedQueryStartAlpha()
 }
 
 void MotionPlanningDisplay::changedQueryMarkerScale()
+{
+  if (!planning_scene_monitor_)
+    return;
+
+  if (isEnabled())
+  {
+    // Clear the interactive markers and re-add them:
+    publishInteractiveMarkers(false);
+  }
+}
+
+void MotionPlanningDisplay::changedQueryMarkerOffset()
 {
   if (!planning_scene_monitor_)
     return;
