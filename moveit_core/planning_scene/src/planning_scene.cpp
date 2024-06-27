@@ -54,6 +54,7 @@ namespace planning_scene
 {
 const std::string PlanningScene::OCTOMAP_NS = "<octomap>";
 const std::string PlanningScene::DEFAULT_SCENE_NAME = "(noname)";
+const std::string PlanningScene::USE_PADDING_SELF_COLLISIONS_PARAM_NAME = "use_padding_self_collisions";
 
 const std::string LOGNAME = "planning_scene";
 
@@ -113,14 +114,14 @@ bool PlanningScene::isEmpty(const moveit_msgs::PlanningSceneWorld& msg)
 
 PlanningScene::PlanningScene(const moveit::core::RobotModelConstPtr& robot_model,
                              const collision_detection::WorldPtr& world)
-  : robot_model_(robot_model), world_(world), world_const_(world)
+  : robot_model_(robot_model), world_(world), world_const_(world), nh_("~")
 {
   initialize();
 }
 
 PlanningScene::PlanningScene(const urdf::ModelInterfaceSharedPtr& urdf_model,
                              const srdf::ModelConstSharedPtr& srdf_model, const collision_detection::WorldPtr& world)
-  : world_(world), world_const_(world)
+  : world_(world), world_const_(world), nh_("~")
 {
   if (!urdf_model)
     throw moveit::ConstructException("The URDF model cannot be NULL");
@@ -144,6 +145,15 @@ PlanningScene::~PlanningScene()
 void PlanningScene::initialize()
 {
   name_ = DEFAULT_SCENE_NAME;
+
+  if (!nh_.getParam(USE_PADDING_SELF_COLLISIONS_PARAM_NAME, use_padding_self_collisions_))
+  {
+    use_padding_self_collisions_ = false;
+    ROS_INFO_STREAM("Param '" << USE_PADDING_SELF_COLLISIONS_PARAM_NAME << "' was not set. Using default value: " << use_padding_self_collisions_);
+  }
+  else {
+    ROS_INFO_STREAM("Param '" << USE_PADDING_SELF_COLLISIONS_PARAM_NAME << "' was set to " << use_padding_self_collisions_);
+  }
 
   scene_transforms_ = std::make_shared<SceneTransforms>(this);
 
@@ -492,9 +502,16 @@ void PlanningScene::checkCollision(const collision_detection::CollisionRequest& 
   // check collision with the world using the padded version
   getCollisionEnv()->checkRobotCollision(req, res, robot_state, acm);
 
-  // do self-collision checking with the unpadded version of the robot
+  // do self-collision checking with the unpadded version of the robot - unless otherwise specified    
   if (!res.collision || (req.contacts && res.contacts.size() < req.max_contacts))
-    getCollisionEnvUnpadded()->checkSelfCollision(req, res, robot_state, acm);
+  {
+    if ( use_padding_self_collisions_ ) {
+      getCollisionEnv()->checkSelfCollision(req, res, robot_state, acm);
+    }
+    else {
+      getCollisionEnvUnpadded()->checkSelfCollision(req, res, robot_state, acm);
+    }
+  }
 }
 
 void PlanningScene::checkCollisionUnpadded(const collision_detection::CollisionRequest& req,
@@ -514,10 +531,15 @@ void PlanningScene::checkCollisionUnpadded(const collision_detection::CollisionR
   // check collision with the world using the unpadded version
   getCollisionEnvUnpadded()->checkRobotCollision(req, res, robot_state, acm);
 
-  // do self-collision checking with the unpadded version of the robot
+  // do self-collision checking with the unpadded version of the robot - unless otherwise specified    
   if (!res.collision || (req.contacts && res.contacts.size() < req.max_contacts))
   {
-    getCollisionEnvUnpadded()->checkSelfCollision(req, res, robot_state, acm);
+    if ( use_padding_self_collisions_ ) {
+      getCollisionEnv()->checkSelfCollision(req, res, robot_state, acm);
+    }
+    else {
+      getCollisionEnvUnpadded()->checkSelfCollision(req, res, robot_state, acm);
+    }
   }
 }
 
