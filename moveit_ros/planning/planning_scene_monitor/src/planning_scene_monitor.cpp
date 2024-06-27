@@ -212,6 +212,8 @@ void PlanningSceneMonitor::initialize(const planning_scene::PlanningScenePtr& sc
           scene_->getCollisionEnvNonConst()->setLinkScale(it.first, it.second);
         }
         scene_->propogateRobotPadding();
+
+        scene_->getCollisionEnvNonConst()->setSelfCollisionUsesPaddedRobot(self_collision_uses_padded_robot_);
       }
       catch (moveit::ConstructException& e)
       {
@@ -1432,6 +1434,7 @@ void PlanningSceneMonitor::configureDefaultPadding()
     default_robot_scale_ = 1.0;
     default_object_padd_ = 0.0;
     default_attached_padd_ = 0.0;
+    self_collision_uses_padded_robot_ = false;
     return;
   }
 
@@ -1467,6 +1470,7 @@ void PlanningSceneMonitor::configureDefaultPadding()
             std::map<std::string, double>());
   nh_.param(robot_description_ + "_planning/default_robot_link_scale", default_robot_link_scale_,
             std::map<std::string, double>());
+  nh_.param(robot_description_ + "_planning/self_collision_uses_padded_robot", self_collision_uses_padded_robot_, false);
 
   ROS_DEBUG_STREAM_NAMED(LOGNAME, "Loaded " << default_robot_link_padd_.size() << " default link paddings");
   ROS_DEBUG_STREAM_NAMED(LOGNAME, "Loaded " << default_robot_link_scale_.size() << " default link scales");

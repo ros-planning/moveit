@@ -490,6 +490,8 @@ protected:
   std::map<std::string, double> default_robot_link_padd_;
   /// default robot link scale
   std::map<std::string, double> default_robot_link_scale_;
+  /// check self-collisions with padded or unpadded robot
+  bool self_collision_uses_padded_robot_;
 
   // variables for planning scene publishing
   ros::Publisher planning_scene_publisher_;

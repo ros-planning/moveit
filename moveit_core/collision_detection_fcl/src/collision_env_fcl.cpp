@@ -281,6 +281,59 @@ void CollisionEnvFCL::checkSelfCollisionHelper(const CollisionRequest& req, Coll
   }
 }
 
+void CollisionEnvFCL::checkCollision(const CollisionRequest& req, CollisionResult& res,
+                                     const moveit::core::RobotState& state) const
+{
+  checkCollisionHelper(req, res, state, nullptr);
+}
+
+void CollisionEnvFCL::checkCollision(const CollisionRequest& req, CollisionResult& res,
+                                     const moveit::core::RobotState& state, const AllowedCollisionMatrix& acm) const
+{
+  checkCollisionHelper(req, res, state, &acm);
+}
+
+void CollisionEnvFCL::checkCollisionHelper(const CollisionRequest& req, CollisionResult& res,
+                                           const moveit::core::RobotState& state,
+                                           const AllowedCollisionMatrix* acm) const
+{
+  FCLManager manager;
+  allocSelfCollisionBroadPhase(state, manager);
+  CollisionData cd(&req, &res, acm);
+  cd.enableGroup(getRobotModel());
+  manager_->collide(manager.manager_.get(), &cd, &collisionCallback);
+
+  if (req.distance)
+  {
+    DistanceRequest dreq;
+    DistanceResult dres;
+
+    dreq.group_name = req.group_name;
+    dreq.acm = acm;
+    dreq.enableGroup(getRobotModel());
+    DistanceData drd(&dreq, &dres);
+    manager_->distance(manager.manager_.get(), &drd, &distanceCallback);
+    res.distance = dres.minimum_distance.distance;
+  }
+
+  if (!res.collision || (req.contacts && res.contacts.size() < req.max_contacts))
+  {
+    manager.manager_->collide(&cd, &collisionCallback);
+    if (req.distance)
+    {
+      DistanceRequest dreq;
+      DistanceResult dres;
+
+      dreq.group_name = req.group_name;
+      dreq.acm = acm;
+      dreq.enableGroup(getRobotModel());
+      DistanceData drd(&dreq, &dres);
+      manager_->distance(&drd, &distanceCallback);
+      res.distance = dres.minimum_distance.distance;
+    }
+  }
+}
+
 void CollisionEnvFCL::checkRobotCollision(const CollisionRequest& req, CollisionResult& res,
                                           const moveit::core::RobotState& state) const
 {

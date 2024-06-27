@@ -43,7 +43,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <map>
+#include <unordered_map>
 
 namespace collision_detection
 {
@@ -245,10 +245,10 @@ private:
   bool getDefaultEntry(const std::string& name1, const std::string& name2,
                        AllowedCollision::Type& allowed_collision) const;
 
-  std::map<std::string, std::map<std::string, AllowedCollision::Type> > entries_;
-  std::map<std::string, std::map<std::string, DecideContactFn> > allowed_contacts_;
+  std::unordered_map<std::string, std::unordered_map<std::string, AllowedCollision::Type> > entries_;
+  std::unordered_map<std::string, std::unordered_map<std::string, DecideContactFn> > allowed_contacts_;
 
-  std::map<std::string, AllowedCollision::Type> default_entries_;
-  std::map<std::string, DecideContactFn> default_allowed_contacts_;
+  std::unordered_map<std::string, AllowedCollision::Type> default_entries_;
+  std::unordered_map<std::string, DecideContactFn> default_allowed_contacts_;
 };
 }  // namespace collision_detection
