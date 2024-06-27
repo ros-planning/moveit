@@ -36,6 +36,7 @@
 /* Author: Ioan Sucan, Dave Coleman */
 
 #include <moveit/robot_state/conversions.h>
+#include <moveit/robot_state/mesh_cache.h>
 #include <geometric_shapes/shape_operations.h>
 #include <tf2_eigen/tf2_eigen.h>
 #include <boost/lexical_cast.hpp>
@@ -272,21 +273,24 @@ static void _msgToAttachedBody(const Transforms* tf, const moveit_msgs::Attached
         shapes.reserve(num_shapes);
         shape_poses.reserve(num_shapes);
 
-        auto append = [&shapes, &shape_poses](shapes::Shape* s, const geometry_msgs::Pose& pose_msg) {
+        auto append = [&shapes, &shape_poses](const shapes::ShapeConstPtr& s, const geometry_msgs::Pose& pose_msg) {
           if (!s)
             return;
           Eigen::Isometry3d pose;
           tf2::fromMsg(pose_msg, pose);
-          shapes.emplace_back(shapes::ShapeConstPtr(s));
+          shapes.emplace_back(s);
           shape_poses.emplace_back(std::move(pose));
         };
 
         for (std::size_t i = 0; i < aco.object.primitives.size(); ++i)
-          append(shapes::constructShapeFromMsg(aco.object.primitives[i]), aco.object.primitive_poses[i]);
+          append(shapes::ShapeConstPtr(shapes::constructShapeFromMsg(aco.object.primitives[i])),
+                 aco.object.primitive_poses[i]);
         for (std::size_t i = 0; i < aco.object.meshes.size(); ++i)
-          append(shapes::constructShapeFromMsg(aco.object.meshes[i]), aco.object.mesh_poses[i]);
+          // TODO: consider exposing min_size_to_cache and max_cache_size to the user.
+          // min_size_to_cache is relevant in the case where too many small meshes are pushing larger meshes out of the cache.
+          append(MeshCache::threadLocalCache(0, 1e9).getShape(aco.object.meshes[i]), aco.object.mesh_poses[i]);
         for (std::size_t i = 0; i < aco.object.planes.size(); ++i)
-          append(shapes::constructShapeFromMsg(aco.object.planes[i]), aco.object.plane_poses[i]);
+          append(shapes::ShapeConstPtr(shapes::constructShapeFromMsg(aco.object.planes[i])), aco.object.plane_poses[i]);
 
         moveit::core::FixedTransformsMap subframe_poses;
         for (std::size_t i = 0; i < aco.object.subframe_poses.size(); ++i)
