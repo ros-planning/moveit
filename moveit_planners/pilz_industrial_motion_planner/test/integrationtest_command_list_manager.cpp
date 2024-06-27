@@ -353,6 +353,20 @@ TEST_F(IntegrationTestCommandListManager, blendTwoSegments)
   pub.publish(display_trajectory);
 }
 
+/**
+ * @brief Tests that solve() calls a callback after each item is solved.
+ */
+TEST_F(IntegrationTestCommandListManager, runCallbackForEachItem)
+{
+  size_t n_items_planned{ 0 };
+  ItemPlannedCallback callback{ [&](const planning_interface::MotionPlanResponse& /*unused*/) { ++n_items_planned; } };
+  Sequence seq{ data_loader_->getSequence("SimpleSequence") };
+  ASSERT_EQ(seq.size(), 2u);
+  moveit_msgs::MotionSequenceRequest req{ seq.toRequest() };
+  RobotTrajCont res_vec{ manager_->solve(scene_, pipeline_, req, callback) };
+  EXPECT_EQ(n_items_planned, 2u);
+}
+
 // ------------------
 // FAILURE cases
 // ------------------

@@ -50,6 +50,7 @@
 namespace pilz_industrial_motion_planner
 {
 using RobotTrajCont = std::vector<robot_trajectory::RobotTrajectoryPtr>;
+using ItemPlannedCallback = std::function<void(const planning_interface::MotionPlanResponse&)>;
 
 // List of exceptions which can be thrown by the CommandListManager class.
 CREATE_MOVEIT_ERROR_CODE_EXCEPTION(NegativeBlendRadiusException, moveit_msgs::MoveItErrorCodes::INVALID_MOTION_PLAN);
@@ -89,6 +90,8 @@ public:
    *    - The blending radius of the last request is 0.
    *    - Only the first request of each group has a start state.
    *    - None of the blending radii overlap with each other.
+   * @param on_item_planned Callback function which is called after each
+   * item is successfully planned.
    *
    * Please note:
    * Starts states do not need to state the joints of all groups.
@@ -98,9 +101,11 @@ public:
    *
    * @return Contains the calculated/generated trajectories.
    */
-  RobotTrajCont solve(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                      const planning_pipeline::PlanningPipelinePtr& planning_pipeline,
-                      const moveit_msgs::MotionSequenceRequest& req_list);
+  RobotTrajCont solve(
+      const planning_scene::PlanningSceneConstPtr& planning_scene,
+      const planning_pipeline::PlanningPipelinePtr& planning_pipeline,
+      const moveit_msgs::MotionSequenceRequest& req_list,
+      const ItemPlannedCallback& on_item_planned = [](const planning_interface::MotionPlanResponse& /*unused*/) {});
 
 private:
   using MotionResponseCont = std::vector<planning_interface::MotionPlanResponse>;
@@ -124,12 +129,17 @@ private:
    * @param planning_scene The planning_scene to be used for trajectory
    * generation.
    * @param req_list Container of requests for calculation/generation.
+   * @param on_item_planned Callback function which is called after each
+   * item is successfully planned.
    *
    * @return Container of generated trajectories.
    */
-  MotionResponseCont solveSequenceItems(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                                        const planning_pipeline::PlanningPipelinePtr& planning_pipeline,
-                                        const moveit_msgs::MotionSequenceRequest& req_list) const;
+  MotionResponseCont solveSequenceItems(
+      const planning_scene::PlanningSceneConstPtr& planning_scene,
+      const planning_pipeline::PlanningPipelinePtr& planning_pipeline,
+      const moveit_msgs::MotionSequenceRequest& req_list,
+      const ItemPlannedCallback& on_item_planned = [](const planning_interface::MotionPlanResponse& /*unused*/) {
+      }) const;
 
   /**
    * @return TRUE if the blending radii of specified trajectories overlap,

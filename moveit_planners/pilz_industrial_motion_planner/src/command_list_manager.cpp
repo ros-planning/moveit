@@ -77,7 +77,8 @@ CommandListManager::CommandListManager(const ros::NodeHandle& nh, const moveit::
 
 RobotTrajCont CommandListManager::solve(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                         const planning_pipeline::PlanningPipelinePtr& planning_pipeline,
-                                        const moveit_msgs::MotionSequenceRequest& req_list)
+                                        const moveit_msgs::MotionSequenceRequest& req_list,
+                                        const ItemPlannedCallback& on_item_planned)
 {
   if (req_list.items.empty())
   {
@@ -88,7 +89,7 @@ RobotTrajCont CommandListManager::solve(const planning_scene::PlanningSceneConst
   checkLastBlendRadiusZero(req_list);
   checkStartStates(req_list);
 
-  MotionResponseCont resp_cont{ solveSequenceItems(planning_scene, planning_pipeline, req_list) };
+  MotionResponseCont resp_cont{ solveSequenceItems(planning_scene, planning_pipeline, req_list, on_item_planned) };
 
   assert(model_);
   RadiiCont radii{ extractBlendRadii(*model_, req_list) };
@@ -225,7 +226,8 @@ CommandListManager::RadiiCont CommandListManager::extractBlendRadii(const moveit
 CommandListManager::MotionResponseCont
 CommandListManager::solveSequenceItems(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                        const planning_pipeline::PlanningPipelinePtr& planning_pipeline,
-                                       const moveit_msgs::MotionSequenceRequest& req_list) const
+                                       const moveit_msgs::MotionSequenceRequest& req_list,
+                                       const ItemPlannedCallback& on_item_planned) const
 {
   MotionResponseCont motion_plan_responses;
   size_t curr_req_index{ 0 };
@@ -244,6 +246,7 @@ CommandListManager::solveSequenceItems(const planning_scene::PlanningSceneConstP
       throw PlanningPipelineException(os.str(), res.error_code_.val);
     }
     motion_plan_responses.emplace_back(res);
+    on_item_planned(res);
     ROS_DEBUG_STREAM("Solved [" << ++curr_req_index << "/" << num_req << "]");
   }
   return motion_plan_responses;
