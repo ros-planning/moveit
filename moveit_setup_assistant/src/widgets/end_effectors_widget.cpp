@@ -108,8 +108,8 @@ QWidget* EndEffectorsWidget::createContentsWidget()
   data_table_->setColumnCount(4);
   data_table_->setSortingEnabled(true);
   data_table_->setSelectionBehavior(QAbstractItemView::SelectRows);
-  connect(data_table_, SIGNAL(cellDoubleClicked(int, int)), this, SLOT(editDoubleClicked(int, int)));
-  connect(data_table_, SIGNAL(cellClicked(int, int)), this, SLOT(previewClicked(int, int)));
+  connect(data_table_, &QTableWidget::cellDoubleClicked, this, &EndEffectorsWidget::editDoubleClicked);
+  connect(data_table_, &QTableWidget::cellClicked, this, &EndEffectorsWidget::previewClicked);
   layout->addWidget(data_table_);
 
   // Set header labels
@@ -132,13 +132,13 @@ QWidget* EndEffectorsWidget::createContentsWidget()
   btn_edit_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
   btn_edit_->setMaximumWidth(300);
   btn_edit_->hide();  // show once we know if there are existing poses
-  connect(btn_edit_, SIGNAL(clicked()), this, SLOT(editSelected()));
+  connect(btn_edit_, &QPushButton::clicked, this, &EndEffectorsWidget::editSelected);
   controls_layout->addWidget(btn_edit_);
   controls_layout->setAlignment(btn_edit_, Qt::AlignRight);
 
   // Delete Selected Button
   btn_delete_ = new QPushButton("&Delete Selected", this);
-  connect(btn_delete_, SIGNAL(clicked()), this, SLOT(deleteSelected()));
+  connect(btn_delete_, &QPushButton::clicked, this, &EndEffectorsWidget::deleteSelected);
   controls_layout->addWidget(btn_delete_);
   controls_layout->setAlignment(btn_delete_, Qt::AlignRight);
 
@@ -146,7 +146,7 @@ QWidget* EndEffectorsWidget::createContentsWidget()
   QPushButton* btn_add = new QPushButton("&Add End Effector", this);
   btn_add->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
   btn_add->setMaximumWidth(300);
-  connect(btn_add, SIGNAL(clicked()), this, SLOT(showNewScreen()));
+  connect(btn_add, &QPushButton::clicked, this, &EndEffectorsWidget::showNewScreen);
   controls_layout->addWidget(btn_add);
   controls_layout->setAlignment(btn_add, Qt::AlignRight);
 
@@ -182,8 +182,7 @@ QWidget* EndEffectorsWidget::createEditWidget()
   group_name_field_ = new QComboBox(this);
   group_name_field_->setEditable(false);
   form_layout->addRow("End Effector Group:", group_name_field_);
-  connect(group_name_field_, SIGNAL(currentIndexChanged(const QString&)), this,
-          SLOT(previewClickedString(const QString&)));
+  connect(group_name_field_, &QComboBox::currentTextChanged, this, &EndEffectorsWidget::previewClickedString);
 
   // Parent Link input
   parent_name_field_ = new QComboBox(this);
@@ -208,14 +207,14 @@ QWidget* EndEffectorsWidget::createEditWidget()
   // Save
   btn_save_ = new QPushButton("&Save", this);
   btn_save_->setMaximumWidth(200);
-  connect(btn_save_, SIGNAL(clicked()), this, SLOT(doneEditing()));
+  connect(btn_save_, &QPushButton::clicked, this, &EndEffectorsWidget::doneEditing);
   controls_layout->addWidget(btn_save_);
   controls_layout->setAlignment(btn_save_, Qt::AlignRight);
 
   // Cancel
   btn_cancel_ = new QPushButton("&Cancel", this);
   btn_cancel_->setMaximumWidth(200);
-  connect(btn_cancel_, SIGNAL(clicked()), this, SLOT(cancelEditing()));
+  connect(btn_cancel_, &QPushButton::clicked, this, &EndEffectorsWidget::cancelEditing);
   controls_layout->addWidget(btn_cancel_);
   controls_layout->setAlignment(btn_cancel_, Qt::AlignRight);
 

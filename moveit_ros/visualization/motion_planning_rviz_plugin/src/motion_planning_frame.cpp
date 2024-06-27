@@ -88,8 +88,8 @@ MotionPlanningFrame::MotionPlanningFrame(MotionPlanningDisplay* pdisplay, rviz::
   connect(ui_->stop_button, SIGNAL(clicked()), this, SLOT(stopButtonClicked()));
   connect(ui_->start_state_combo_box, SIGNAL(activated(QString)), this, SLOT(startStateTextChanged(QString)));
   connect(ui_->goal_state_combo_box, SIGNAL(activated(QString)), this, SLOT(goalStateTextChanged(QString)));
-  connect(ui_->planning_group_combo_box, SIGNAL(currentIndexChanged(QString)), this,
-          SLOT(planningGroupTextChanged(QString)));
+  connect(ui_->planning_group_combo_box, &QComboBox::currentTextChanged, this,
+          &MotionPlanningFrame::planningGroupTextChanged);
   connect(ui_->database_connect_button, SIGNAL(clicked()), this, SLOT(databaseConnectButtonClicked()));
   connect(ui_->save_scene_button, SIGNAL(clicked()), this, SLOT(saveSceneButtonClicked()));
   connect(ui_->save_query_button, SIGNAL(clicked()), this, SLOT(saveQueryButtonClicked()));
@@ -175,7 +175,7 @@ MotionPlanningFrame::MotionPlanningFrame(MotionPlanningDisplay* pdisplay, rviz::
   connect(ui_->wsize_y, SIGNAL(valueChanged(double)), this, SIGNAL(configChanged()));
   connect(ui_->wsize_z, SIGNAL(valueChanged(double)), this, SIGNAL(configChanged()));
 
-  QShortcut* copy_object_shortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_C), ui_->collision_objects_list);
+  QShortcut* copy_object_shortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_C), ui_->collision_objects_list);
   connect(copy_object_shortcut, SIGNAL(activated()), this, SLOT(copySelectedCollisionObjects()));
 
   ui_->reset_db_button->hide();

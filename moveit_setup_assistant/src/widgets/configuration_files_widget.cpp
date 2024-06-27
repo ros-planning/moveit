@@ -44,7 +44,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QPushButton>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QSplitter>
 #include <QVBoxLayout>
 
@@ -790,11 +790,10 @@ bool ConfigurationFilesWidget::checkDependencies()
   }
 
   // Check that email information is filled
-  QRegExp mail_regex("\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}\\b");
-  mail_regex.setCaseSensitivity(Qt::CaseInsensitive);
-  mail_regex.setPatternSyntax(QRegExp::RegExp);
+  QRegularExpression mail_regex("\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,4}\\b");
+  mail_regex.setPatternOptions(QRegularExpression::CaseInsensitiveOption);
   QString test_email = QString::fromStdString(config_data_->author_email_);
-  if (!mail_regex.exactMatch(test_email))
+  if (!mail_regex.match(test_email).hasMatch())
   {
     dependencies << "<b>No valid email address added</b>";
     required_actions = true;

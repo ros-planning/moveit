@@ -43,6 +43,7 @@
 #include <QPalette>
 #include <QApplication>
 #include <QItemSelection>
+#include <QtCore/QRegularExpression>
 
 /// Boost mapping of reasons to a background color
 static const boost::unordered_map<moveit_setup_assistant::DisabledReason, QVariant> LONG_REASONS_TO_BRUSH =
@@ -246,7 +247,7 @@ void CollisionMatrixModel::setEnabled(const QModelIndexList& indexes, bool value
 void CollisionMatrixModel::setFilterRegExp(const QString& filter)
 {
   beginResetModel();
-  QRegExp regexp(filter);
+  QRegularExpression regexp(filter);
   visual_to_index.clear();
   for (int idx = 0, end = q_names.size(); idx != end; ++idx)
   {

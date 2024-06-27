@@ -45,9 +45,11 @@ INSTANTIATE_TYPED_TEST_CASE_P(FCLCollisionCheckPanda, CollisionDetectorPandaTest
 //  and https://github.com/flexible-collision-library/fcl/pull/288.
 // So only execute the full distance test suite on FCL >= 0.6.
 #if MOVEIT_FCL_VERSION >= FCL_VERSION_CHECK(0, 6, 0)
+REGISTER_TYPED_TEST_CASE_P(DistanceFullPandaTest, DistancePoints);
 INSTANTIATE_TYPED_TEST_CASE_P(FCLDistanceCheckPanda, DistanceFullPandaTest,
                               collision_detection::CollisionDetectorAllocatorFCL);
 #else
+REGISTER_TYPED_TEST_CASE_P(DistanceCheckPandaTest, DistanceSingle);
 INSTANTIATE_TYPED_TEST_CASE_P(FCLDistanceCheckPanda, DistanceCheckPandaTest,
                               collision_detection::CollisionDetectorAllocatorFCL);
 #endif
