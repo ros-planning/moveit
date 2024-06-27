@@ -216,7 +216,8 @@ protected:
 
   /** \brief This is the function that constructs new planning contexts if no previous ones exist that are suitable */
   ModelBasedPlanningContextPtr getPlanningContext(const planning_interface::PlannerConfigurationSettings& config,
-                                                  const ModelBasedStateSpaceFactoryPtr& factory) const;
+                                                  const ModelBasedStateSpaceFactoryPtr& factory,
+                                                  const moveit_msgs::MotionPlanRequest& req) const;
 
   const ModelBasedStateSpaceFactoryPtr& getStateSpaceFactory(const std::string& factory_type) const;
   const ModelBasedStateSpaceFactoryPtr& getStateSpaceFactory(const std::string& group_name,

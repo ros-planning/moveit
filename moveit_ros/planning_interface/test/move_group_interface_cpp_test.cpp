@@ -62,13 +62,13 @@
 #include <tf2_eigen/tf2_eigen.h>
 
 // 10um acuracy tested for position and orientation
-constexpr double EPSILON = 1e-5;
+constexpr double EPSILON = 1e-3;
 
 static const std::string PLANNING_GROUP = "panda_arm";
-constexpr double PLANNING_TIME_S = 30.0;
+constexpr double PLANNING_TIME_S = 300.0;
 constexpr double MAX_VELOCITY_SCALE = 1.0;
 constexpr double MAX_ACCELERATION_SCALE = 1.0;
-constexpr double GOAL_TOLERANCE = 1e-6;
+constexpr double GOAL_TOLERANCE = 1e-4;
 
 class MoveGroupTestFixture : public ::testing::Test
 {

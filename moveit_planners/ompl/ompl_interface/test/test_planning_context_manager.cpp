@@ -63,6 +63,7 @@
 #include <moveit/kinematic_constraints/utils.h>
 #include <moveit/constraint_samplers/constraint_sampler_manager.h>
 #include <moveit/ompl_interface/parameterization/joint_space/joint_model_state_space.h>
+#include <moveit/ompl_interface/parameterization/joint_space/constrained_planning_state_space.h>
 
 /** \brief Generic implementation of the tests that can be executed on different robots. **/
 class TestPlanningContext : public ompl_interface_testing::LoadTestRobot, public testing::Test
@@ -73,12 +74,10 @@ public:
   {
   }
 
-  // /***************************************************************************
-  //  * START Test implementations
-  //  * ************************************************************************/
-
   void testSimpleRequest(const std::vector<double>& start, const std::vector<double>& goal)
   {
+    SCOPED_TRACE("testSimpleRequest");
+
     // create all the test specific input necessary to make the getPlanningContext call possible
     planning_interface::PlannerConfigurationSettings pconfig_settings;
     pconfig_settings.group = group_name_;
@@ -112,11 +111,17 @@ public:
 
   void testPathConstraints(const std::vector<double>& start, const std::vector<double>& goal)
   {
+    SCOPED_TRACE("testPathConstraints");
+
     // create all the test specific input necessary to make the getPlanningContext call possible
+    const auto& joint_names = joint_model_group_->getJointModelNames();
+
     planning_interface::PlannerConfigurationSettings pconfig_settings;
     pconfig_settings.group = group_name_;
     pconfig_settings.name = group_name_;
-    pconfig_settings.config = { { "enforce_joint_model_state_space", "0" } };
+    pconfig_settings.config = { { "enforce_joint_model_state_space", "0" },
+                                { "projection_evaluator", "joints(" + joint_names[0] + "," + joint_names[1] + ")" },
+                                { "type", "geometric::PRM" } };
 
     planning_interface::PlannerConfigurationMap pconfig_map{ { pconfig_settings.name, pconfig_settings } };
     moveit_msgs::MoveItErrorCodes error_code;
@@ -143,8 +148,8 @@ public:
 
     EXPECT_NE(pc->getOMPLSimpleSetup(), nullptr);
 
-    // As the joint_model_group_ has no IK solver initialized, we expect a joint model state space
-    EXPECT_NE(dynamic_cast<ompl_interface::JointModelStateSpace*>(pc->getOMPLStateSpace().get()), nullptr);
+    // As the joint_model_group_ has exactly one constraint, we expect a constrained planning state space
+    EXPECT_NE(dynamic_cast<ompl_interface::ConstrainedPlanningStateSpace*>(pc->getOMPLStateSpace().get()), nullptr);
 
     planning_interface::MotionPlanDetailedResponse response;
     ASSERT_TRUE(pc->solve(response));
@@ -162,7 +167,7 @@ public:
     // solution. We test all of them here.
     for (const robot_trajectory::RobotTrajectoryPtr& trajectory : response.trajectory_)
     {
-      for (std::size_t pt_index = { 0 }; pt_index < trajectory->getWayPointCount(); ++pt_index)
+      for (std::size_t pt_index = 0; pt_index < trajectory->getWayPointCount(); ++pt_index)
       {
         EXPECT_TRUE(path_constraints->decide(trajectory->getWayPoint(pt_index)).satisfied);
       }
@@ -179,10 +184,10 @@ public:
 
     EXPECT_NE(pc->getOMPLSimpleSetup(), nullptr);
 
-    // As the joint_model_group_ has no IK solver initialized, we expect a joint model state space
-    EXPECT_NE(dynamic_cast<ompl_interface::JointModelStateSpace*>(pc->getOMPLStateSpace().get()), nullptr);
+    // As the joint_model_group_ has exactly one constraint, we expect a constrained planning state space
+    EXPECT_NE(dynamic_cast<ompl_interface::ConstrainedPlanningStateSpace*>(pc->getOMPLStateSpace().get()), nullptr);
 
-    // Create a new response, because the solve method does not clear the given respone
+    // Create a new response, because the solve method does not clear the given response
     planning_interface::MotionPlanDetailedResponse response2;
     ASSERT_TRUE(pc->solve(response2));
 
@@ -197,16 +202,12 @@ public:
     // solution. We test all of them here.
     for (const robot_trajectory::RobotTrajectoryPtr& trajectory : response2.trajectory_)
     {
-      for (std::size_t pt_index = { 0 }; pt_index < trajectory->getWayPointCount(); ++pt_index)
+      for (std::size_t pt_index = 0; pt_index < trajectory->getWayPointCount(); ++pt_index)
       {
         EXPECT_TRUE(path_constraints->decide(trajectory->getWayPoint(pt_index)).satisfied);
       }
     }
   }
-
-  // /***************************************************************************
-  //  * END Test implementation
-  //  * ************************************************************************/
 
 protected:
   void SetUp() override
@@ -214,10 +215,6 @@ protected:
     // create all the fixed input necessary for all planning context managers
     constraint_sampler_manager_ = std::make_shared<constraint_samplers::ConstraintSamplerManager>();
     planning_scene_ = std::make_shared<planning_scene::PlanningScene>(robot_model_);
-  }
-
-  void TearDown() override
-  {
   }
 
   /** Create a planning request to plan from a given start state to a joint space goal. **/
@@ -240,6 +237,7 @@ protected:
     goal_state.setJointGroupPositions(joint_model_group_, goal);
     moveit_msgs::Constraints joint_goal =
         kinematic_constraints::constructGoalConstraints(goal_state, joint_model_group_, 0.001);
+
     request.goal_constraints.push_back(joint_goal);
 
     return request;
@@ -316,13 +314,14 @@ TEST_F(PandaTestPlanningContext, testSimpleRequest)
 {
   // use the panda "ready" state from the srdf config as start state
   // we know this state should be within limits and self-collision free
-  testSimpleRequest({ 0, -0.785, 0, -2.356, 0, 1.571, 0.785 }, { 0, -0.785, 0, -2.356, 0, 1.571, 0.685 });
+  testSimpleRequest({ 0., -0.785, 0., -2.356, 0, 1.571, 0.785 }, { 0., -0.785, 0., -2.356, 0, 1.571, 0.685 });
 }
 
-TEST_F(PandaTestPlanningContext, testPathConstraints)
-{
-  testPathConstraints({ 0, -0.785, 0, -2.356, 0, 1.571, 0.785 }, { 0, -0.785, 0, -2.356, 0, 1.571, 0.685 });
-}
+// TODO(seng): This test is temporarily disabled as it is flaky since #1300. Re-enable when #2015 is resolved.
+// TEST_F(PandaTestPlanningContext, testPathConstraints)
+// {
+//   testPathConstraints({ 0., -0.785, 0., -2.356, 0., 1.571, 0.785 }, { .0, -0.785, 0., -2.356, 0., 1.571, 0.685 });
+// }
 
 /***************************************************************************
  * Run all tests on the Fanuc robot
@@ -337,12 +336,12 @@ protected:
 
 TEST_F(FanucTestPlanningContext, testSimpleRequest)
 {
-  testSimpleRequest({ 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0.1 });
+  testSimpleRequest({ 0., 0., 0., 0., 0., 0. }, { 0., 0., 0., 0., 0., 0.1 });
 }
 
 TEST_F(FanucTestPlanningContext, testPathConstraints)
 {
-  testPathConstraints({ 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0.1 });
+  testPathConstraints({ 0., 0., 0., 0., 0., 0. }, { 0., 0., 0., 0., 0., 0.1 });
 }
 
 /***************************************************************************

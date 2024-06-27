@@ -28,6 +28,8 @@
   <test_depend>moveit_resources_pr2_description</test_depend>
   <test_depend>moveit_resources_fanuc_description</test_depend>
   <test_depend>moveit_resources_panda_description</test_depend>
+  <test_depend>moveit_resources_fanuc_moveit_config</test_depend>
+  <test_depend>moveit_resources_panda_moveit_config</test_depend>
   <test_depend>rosunit</test_depend>
   <test_depend>rostest</test_depend>
   <test_depend>tf2_eigen</test_depend>
