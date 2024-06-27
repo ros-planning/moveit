@@ -116,6 +116,19 @@ target_link_libraries(servo_server
   ${catkin_LIBRARIES}
 )
 
+############################
+## Frame testing node ##
+############################
+
+add_executable(servo_server_sub_pub
+  src/servo_server_sub_pub.cpp
+)
+add_dependencies(servo_server_sub_pub ${catkin_EXPORTED_TARGETS})
+target_link_libraries(servo_server_sub_pub
+  ${SERVO_LIB_NAME}
+  ${catkin_LIBRARIES}
+)
+
 ################################################
 ## An example of converting joystick commands ##
 ################################################
@@ -137,6 +150,7 @@ install(
     pose_tracking_example
     servo_server
     spacenav_to_twist
+    servo_server_sub_pub
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -63,6 +63,8 @@ Servo::Servo(ros::NodeHandle& nh, const planning_scene_monitor::PlanningSceneMon
   spinner.start();
 
   // Confirm the planning scene monitor is ready to be used
+  planning_scene_monitor_->startSceneMonitor();
+  planning_scene_monitor_->startWorldGeometryMonitor();
   if (!planning_scene_monitor_->getStateMonitor())
   {
     planning_scene_monitor_->startStateMonitor(parameters_.joint_topic);
@@ -74,6 +76,18 @@ Servo::Servo(ros::NodeHandle& nh, const planning_scene_monitor::PlanningSceneMon
   {
     ROS_FATAL_NAMED(LOGNAME, "Timeout waiting for current state");
     exit(EXIT_FAILURE);
+  }
+
+  // If the planning scene monitor in servo is the primary one we provide /get_planning_scene service so RViz displays
+  // or secondary planning scene monitors can fetch the scene, otherwise we request the planning scene from the
+  // primary planning scene monitor (e.g. move_group)
+  if (parameters_.is_primary_planning_scene_monitor)
+  {
+    planning_scene_monitor_->providePlanningSceneService();
+  }
+  else
+  {
+    planning_scene_monitor_->requestPlanningSceneState();
   }
 
   servo_calcs_ = std::make_unique<ServoCalcs>(nh_, parameters_, planning_scene_monitor_);
@@ -117,6 +131,10 @@ bool Servo::readParameters()
   error += !rosparam_shortcuts::get(LOGNAME, nh, "publish_joint_velocities", parameters_.publish_joint_velocities);
   error +=
       !rosparam_shortcuts::get(LOGNAME, nh, "publish_joint_accelerations", parameters_.publish_joint_accelerations);
+  // These parameters are optional. They take a default value if none is defined.
+  nh.param<bool>("is_primary_planning_scene_monitor", parameters_.is_primary_planning_scene_monitor, false);
+  nh.param<std::string>("monitored_planning_scene_topic", parameters_.monitored_planning_scene_topic,
+    planning_scene_monitor::PlanningSceneMonitor::DEFAULT_PLANNING_SCENE_TOPIC);
 
   // Parameters for collision checking
   error += !rosparam_shortcuts::get(LOGNAME, nh, "check_collisions", parameters_.check_collisions);
