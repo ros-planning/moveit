@@ -130,13 +130,110 @@ std::size_t countIndividualConstraints(const moveit_msgs::Constraints& constr)
 moveit_msgs::Constraints constructGoalConstraints(const moveit::core::RobotState& state,
                                                   const moveit::core::JointModelGroup* jmg, double tolerance)
 {
-  return constructGoalConstraints(state, jmg, tolerance, tolerance);
+  moveit_msgs::Constraints goal;
+
+  for (const JointModel* jm : jmg->getJointModels())
+  {
+    // Read the joint values, of which there may be a variable amount based on the joint type.
+    std::vector<double> joint_values;
+    state.copyJointGroupPositions(jmg, joint_values);
+
+    // Use different constraint for each type.
+    switch (jm->getType())
+    {
+      case JointModel::UNKNOWN:
+        ROS_ERROR("Unable to construct goal constraints for unknown joint type.");
+        break;
+        // Revolute and prismatic are 1 DoF, so a JointConstraint works fine
+      case JointModel::REVOLUTE:
+      case JointModel::PRISMATIC:
+      {
+        moveit_msgs::JointConstraint jc;
+        jc.joint_name = jm->getName();   // Joint name corresponds to variable name
+        jc.position = joint_values[0];   // 1 DoF joint, so joint_values is just a single-element vector
+        jc.tolerance_above = tolerance;  // Tolerance is symmetrical around goal position.
+        jc.tolerance_below = tolerance;
+        jc.weight = 1.0;  // Without further information, we'll assume this is uniformly-weighted?
+        goal.joint_constraints.push_back(jc);
+      }
+      break;
+      case JointModel::PLANAR:
+      {
+        // There is no constraint message for planar joints, so we just borrow the one for floating joints.
+        // Implementation is based on PlanarJointModel::computeTransform(const double* joint_values,
+        //                                                               Eigen::Isometry3d& transf)
+        geometry_msgs::PoseStamped floating_joint_pose;
+
+        // Frame is either the model frame if no parent (virtual joint) or the parent link name.
+        floating_joint_pose.header.frame_id = jm->getParentLinkModel() == nullptr ?
+                                                  state.getRobotModel()->getModelFrame() :
+                                                  jm->getParentLinkModel()->getName();
+        floating_joint_pose.pose.position.x = joint_values[0];  // Joint values are simply the XY-position,
+        floating_joint_pose.pose.position.y = joint_values[1];  // in that order.
+        // Planar joint constraint is simply a floating joint restricted to the XY-plane
+        floating_joint_pose.pose.position.z = 0.0;
+
+        // Same here: the rotation is simply a quaternion rotation around the unit Z axis.
+        Eigen::Quaterniond quaternion(Eigen::AngleAxisd(joint_values[2], Eigen::Vector3d::UnitZ()));
+        floating_joint_pose.pose.orientation.x = quaternion.x();
+        floating_joint_pose.pose.orientation.y = quaternion.y();
+        floating_joint_pose.pose.orientation.z = quaternion.z();
+        floating_joint_pose.pose.orientation.w = quaternion.w();
+
+        // Defer to a helper method to actually construct the coal constraints for the single joint.
+        // This will produce a single position constraint and a single orientation constraint, which
+        // we simply copy over.
+        auto constraints = constructGoalConstraints(jm->getName(), floating_joint_pose, tolerance, tolerance);
+        goal.position_constraints.push_back(constraints.position_constraints[0]);
+        goal.orientation_constraints.push_back(constraints.orientation_constraints[0]);
+      }
+      break;
+      case JointModel::FLOATING:
+      {
+        // Simply copy the floating joint values over.
+        geometry_msgs::PoseStamped floating_joint_pose;
+        floating_joint_pose.header.frame_id = jm->getParentLinkModel() == nullptr ?
+                                                  state.getRobotModel()->getModelFrame() :
+                                                  jm->getParentLinkModel()->getName();
+        // See FloatingJointModel constructor for where we get the array indices from.
+        floating_joint_pose.pose.position.x = joint_values[0];
+        floating_joint_pose.pose.position.y = joint_values[1];
+        floating_joint_pose.pose.position.z = joint_values[2];
+        floating_joint_pose.pose.orientation.x = joint_values[3];
+        floating_joint_pose.pose.orientation.y = joint_values[4];
+        floating_joint_pose.pose.orientation.z = joint_values[5];
+        floating_joint_pose.pose.orientation.w = joint_values[6];
+
+        // Same as with the planar joint, rely on this sub-method to actually construct the goal constraints,
+        // which then get merged into the total goal constraint message.
+        auto constraints = constructGoalConstraints(jm->getName(), floating_joint_pose, tolerance, tolerance);
+        goal.position_constraints.push_back(constraints.position_constraints[0]);
+        goal.orientation_constraints.push_back(constraints.orientation_constraints[0]);
+      }
+      break;
+
+      case JointModel::FIXED:
+        // No point in constraining a fixed joint.
+        break;
+    }
+  }
+
+  return goal;
 }
 
 moveit_msgs::Constraints constructGoalConstraints(const moveit::core::RobotState& state,
                                                   const moveit::core::JointModelGroup* jmg, double tolerance_below,
                                                   double tolerance_above)
 {
+  for (const JointModel* jm : jmg->getJointModels())
+  {
+    if (jm->getType() == moveit::core::JointModel::FLOATING || jm->getType() == moveit::core::JointModel::PLANAR)
+    {
+      ROS_WARN("JointModelGroup contains floating or planar joints, "
+               "for which upper and lower tolerances are poorly-defined.");
+    }
+  }
+
   moveit_msgs::Constraints goal;
   std::vector<double> vals;
   state.copyJointGroupPositions(jmg, vals);
