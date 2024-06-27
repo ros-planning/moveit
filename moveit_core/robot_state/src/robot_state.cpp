@@ -1413,6 +1413,80 @@ bool RobotState::getJacobian(const JointModelGroup* group, const LinkModel* link
   return true;
 }
 
+bool RobotState::getJacobianDerivative(const JointModelGroup* group, const LinkModel* link,
+                                       const Eigen::Vector3d& reference_point_position, Eigen::MatrixXd& jacobian,
+                                       Eigen::MatrixXd& jacobian_derivative) const
+{
+  const int rows = 6;
+  const int columns = group->getVariableCount();
+  jacobian_derivative.setZero(rows, columns);
+
+  // Calculate the Jacobian with use_quaternion_representation = false
+  bool get_jacobian_success = getJacobian(group, link, reference_point_position, jacobian, false);
+
+  if (!get_jacobian_success)
+  {
+    ROS_ERROR_NAMED(LOGNAME, "Jacobian compuatation failed");
+    return false;
+  }
+
+  auto velocities = getJointVelocities(group->getJointModels()[0]);
+
+  while (link)
+  {
+    const JointModel* pjm = link->getParentJointModel();
+    if (pjm->getVariableCount() > 0)
+    {
+      if (!group->hasJointModel(pjm->getName()))
+      {
+        link = pjm->getParentLinkModel();
+        continue;
+      }
+      unsigned int current_joint_index = group->getVariableGroupIndex(pjm->getName());
+      if (pjm->getType() == moveit::core::JointModel::REVOLUTE || pjm->getType() == moveit::core::JointModel::PRISMATIC)
+      {
+        // iterate over all joints, pd_joint_index - partial derivative joint index
+        for (unsigned int pd_joint_index = 0; pd_joint_index < group->getVariableCount(); pd_joint_index++)
+        {
+          jacobian_derivative.col(current_joint_index) +=
+              getJacobianColumnPartialDerivative(jacobian, current_joint_index, pd_joint_index) *
+              velocities[pd_joint_index];
+        }
+      }
+      else
+        ROS_ERROR_NAMED(LOGNAME, "Unknown type of joint in Jacobian derivative computation");
+    }
+    if (pjm == group->getJointModels()[0])
+      break;
+    link = pjm->getParentLinkModel();
+  }
+  return true;
+}
+
+Eigen::Matrix<double, 6, 1> RobotState::getJacobianColumnPartialDerivative(const Eigen::MatrixXd& jacobian,
+                                                                           int column_index, int joint_index)
+{
+  // Twist is [v omega]^T
+  const Eigen::Matrix<double, 6, 1>& jac_j = jacobian.col(joint_index);
+  const Eigen::Matrix<double, 6, 1>& jac_i = jacobian.col(column_index);
+
+  Eigen::Matrix<double, 6, 1> t_djdq = Eigen::Matrix<double, 6, 1>::Zero();
+
+  if (joint_index <= column_index)
+  {
+    // ref (20)
+    const Eigen::Vector3d& jac_j_angular = jac_j.segment<3>(3);
+    t_djdq.segment<3>(0) = jac_j_angular.cross(jac_i.segment<3>(0));
+    t_djdq.segment<3>(3) = jac_j_angular.cross(jac_i.segment<3>(3));
+  }
+  else if (joint_index > column_index)
+  {
+    // ref (23)
+    t_djdq.segment<3>(0) = -jac_j.segment<3>(0).cross(jac_i.segment<3>(3));
+  }
+  return t_djdq;
+}
+
 bool RobotState::setFromDiffIK(const JointModelGroup* jmg, const Eigen::VectorXd& twist, const std::string& tip,
                                double dt, const GroupStateValidityCallbackFn& constraint)
 {
