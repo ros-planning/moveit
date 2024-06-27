@@ -47,6 +47,7 @@
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <moveit/profiler/profiler.h>
+#include <diagnostic_msgs/DiagnosticStatus.h>
 
 #include <boost/algorithm/string/join.hpp>
 
@@ -139,7 +140,7 @@ PlanningSceneMonitor::PlanningSceneMonitor(const robot_model_loader::RobotModelL
 PlanningSceneMonitor::PlanningSceneMonitor(const planning_scene::PlanningScenePtr& scene,
                                            const robot_model_loader::RobotModelLoaderPtr& rm_loader,
                                            const std::shared_ptr<tf2_ros::Buffer>& tf_buffer, const std::string& name)
-  : monitor_name_(name), nh_("~"), tf_buffer_(tf_buffer), rm_loader_(rm_loader)
+  : monitor_name_(name), nh_("~"), tf_buffer_(tf_buffer), rm_loader_(rm_loader), lock_status_diagnostics_enabled_(false)
 {
   root_nh_.setCallbackQueue(&queue_);
   nh_.setCallbackQueue(&queue_);
@@ -152,7 +153,12 @@ PlanningSceneMonitor::PlanningSceneMonitor(const planning_scene::PlanningScenePt
                                            const robot_model_loader::RobotModelLoaderPtr& rm_loader,
                                            const ros::NodeHandle& nh, const std::shared_ptr<tf2_ros::Buffer>& tf_buffer,
                                            const std::string& name)
-  : monitor_name_(name), nh_("~"), root_nh_(nh), tf_buffer_(tf_buffer), rm_loader_(rm_loader)
+  : monitor_name_(name)
+  , nh_("~")
+  , root_nh_(nh)
+  , tf_buffer_(tf_buffer)
+  , rm_loader_(rm_loader)
+  , lock_status_diagnostics_enabled_(false)
 {
   // use same callback queue as root_nh_
   nh_.setCallbackQueue(root_nh_.getCallbackQueue());
@@ -259,6 +265,9 @@ void PlanningSceneMonitor::initialize(const planning_scene::PlanningScenePtr& sc
                                             false);  // do not start the timer yet
 
   reconfigure_impl_ = new DynamicReconfigureImpl(this);
+
+  if (lock_status_diagnostics_enabled_)
+    lock_status_pub_ = nh_.advertise<diagnostic_msgs::DiagnosticStatus>("/lock_status", 100, true);
 }
 
 void PlanningSceneMonitor::monitorDiffs(bool flag)
@@ -267,7 +276,7 @@ void PlanningSceneMonitor::monitorDiffs(bool flag)
   {
     if (flag)
     {
-      boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+      auto ulock = acquireUniqueLock("monitorDiffs()");
       if (scene_)
       {
         scene_->setAttachedBodyUpdateCallback(moveit::core::AttachedBodyCallback());
@@ -293,7 +302,7 @@ void PlanningSceneMonitor::monitorDiffs(bool flag)
         stopPublishingPlanningScene();
       }
       {
-        boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+        auto ulock = acquireUniqueLock("monitorDiffs()");
         if (scene_)
         {
           scene_->decoupleParent();
@@ -361,7 +370,7 @@ void PlanningSceneMonitor::scenePublishingThread()
     bool is_full = false;
     ros::Rate rate(publish_planning_scene_frequency_);
     {
-      boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+      auto ulock = acquireUniqueLock("scenePublishingThread()");
       while (new_scene_update_ == UPDATE_NONE && publish_planning_scene_)
         new_scene_update_condition_.wait(ulock);
       if (new_scene_update_ != UPDATE_NONE)
@@ -526,7 +535,7 @@ bool PlanningSceneMonitor::getPlanningSceneServiceCallback(moveit_msgs::GetPlann
   moveit_msgs::PlanningSceneComponents all_components;
   all_components.components = UINT_MAX;  // Return all scene components if nothing is specified.
 
-  boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+  auto ulock = acquireUniqueLock("getPlanningSceneServiceCallback()");
   scene_->getPlanningSceneMsg(res.scene, req.components.components ? req.components : all_components);
 
   return true;
@@ -541,7 +550,7 @@ void PlanningSceneMonitor::clearOctomap()
 {
   bool removed = false;
   {
-    boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+    auto ulock = acquireUniqueLock("newPlanningSceneCallback()");
     removed = scene_->getWorldNonConst()->removeObject(scene_->OCTOMAP_NS);
 
     if (octomap_monitor_)
@@ -570,7 +579,7 @@ bool PlanningSceneMonitor::newPlanningSceneMessage(const moveit_msgs::PlanningSc
   SceneUpdateType upd = UPDATE_SCENE;
   std::string old_scene_name;
   {
-    boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+    auto ulock = acquireUniqueLock("newPlanningSceneMessage()");
     // we don't want the transform cache to update while we are potentially changing attached bodies
     boost::recursive_mutex::scoped_lock prevent_shape_cache_updates(shape_handles_lock_);
 
@@ -646,7 +655,7 @@ void PlanningSceneMonitor::newPlanningSceneWorldCallback(const moveit_msgs::Plan
   {
     updateFrameTransforms();
     {
-      boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+      auto ulock = acquireUniqueLock("newPlanningSceneWorldCallback()");
       last_update_time_ = ros::Time::now();
       scene_->getWorldNonConst()->clearObjects();
       scene_->processPlanningSceneWorldMsg(*world);
@@ -671,7 +680,7 @@ void PlanningSceneMonitor::collisionObjectCallback(const moveit_msgs::CollisionO
 
   updateFrameTransforms();
   {
-    boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+    auto ulock = acquireUniqueLock("collisionObjectCallback()");
     last_update_time_ = ros::Time::now();
     if (!scene_->processCollisionObjectMsg(*obj))
       return;
@@ -685,7 +694,7 @@ void PlanningSceneMonitor::attachObjectCallback(const moveit_msgs::AttachedColli
   {
     updateFrameTransforms();
     {
-      boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+      auto ulock = acquireUniqueLock("attachObjectCallback()");
       last_update_time_ = ros::Time::now();
       scene_->processAttachedCollisionObjectMsg(*obj);
     }
@@ -944,13 +953,13 @@ bool PlanningSceneMonitor::waitForCurrentRobotState(const ros::Time& t, double w
   // Sometimes there is no state monitor. In this case state updates are received as part of scene updates only.
   // However, scene updates are only published if the robot actually moves. Hence we need a timeout!
   // As publishing planning scene updates is throttled (2Hz by default), a 1s timeout is a suitable default.
-  boost::shared_lock<boost::shared_mutex> lock(scene_update_mutex_);
+  auto slock = acquireSharedLock("waitForCurrentRobotState()");
   ros::Time prev_robot_motion_time = last_robot_motion_time_;
   while (last_robot_motion_time_ < t &&  // Wait until the state update actually reaches the scene.
          timeout > ros::WallDuration())
   {
     ROS_DEBUG_STREAM_NAMED(LOGNAME, "last robot motion: " << (t - last_robot_motion_time_).toSec() << " ago");
-    new_scene_update_condition_.wait_for(lock, boost::chrono::nanoseconds(timeout.toNSec()));
+    new_scene_update_condition_.wait_for(slock, std::chrono::nanoseconds(timeout.toNSec()));
     timeout -= ros::WallTime::now() - start;  // compute remaining wait_time
   }
   bool success = last_robot_motion_time_ >= t;
@@ -967,6 +976,7 @@ bool PlanningSceneMonitor::waitForCurrentRobotState(const ros::Time& t, double w
 void PlanningSceneMonitor::lockSceneRead()
 {
   scene_update_mutex_.lock_shared();
+
   if (octomap_monitor_)
     octomap_monitor_->getOcTreePtr()->lockRead();
 }
@@ -975,12 +985,14 @@ void PlanningSceneMonitor::unlockSceneRead()
 {
   if (octomap_monitor_)
     octomap_monitor_->getOcTreePtr()->unlockRead();
+
   scene_update_mutex_.unlock_shared();
 }
 
 void PlanningSceneMonitor::lockSceneWrite()
 {
   scene_update_mutex_.lock();
+
   if (octomap_monitor_)
     octomap_monitor_->getOcTreePtr()->lockWrite();
 }
@@ -989,6 +1001,7 @@ void PlanningSceneMonitor::unlockSceneWrite()
 {
   if (octomap_monitor_)
     octomap_monitor_->getOcTreePtr()->unlockWrite();
+
   scene_update_mutex_.unlock();
 }
 
@@ -1068,6 +1081,55 @@ bool PlanningSceneMonitor::getShapeTransformCache(const std::string& target_fram
     return false;
   }
   return true;
+}
+
+UniqueTimedLock PlanningSceneMonitor::acquireUniqueLock(const std::string& source, std::chrono::milliseconds timeout)
+{
+  // TODO(henningkayser): lock/unlock octomap
+  // TODO(henningkayser): keep track of locking resources, list in exception or error message
+  ROS_DEBUG_NAMED(LOGNAME, "Acquiring exclusive mutex lock from '%s'", source.c_str());
+  UniqueTimedLock ulock(source, scene_update_mutex_, timeout);
+  if (lock_status_diagnostics_enabled_)
+  {
+    ulock.onDestruct([this](const std::string& name, const ros::Time& start_time, const ros::Time& lock_time,
+                            const ros::Time& destruct_time) {
+      publishLockDiagnostics(name, "unique", start_time, lock_time - start_time, destruct_time - lock_time);
+    });
+  }
+  return ulock;
+}
+
+SharedTimedLock PlanningSceneMonitor::acquireSharedLock(const std::string& source, std::chrono::milliseconds timeout)
+{
+  // TODO(henningkayser): lock/unlock octomap
+  // TODO(henningkayser): keep track of locking resources, list in exception or error message
+  ROS_DEBUG_NAMED(LOGNAME, "Acquiring shared mutex lock from '%s'", source.c_str());
+  SharedTimedLock slock(source, scene_update_mutex_, timeout);
+  if (lock_status_diagnostics_enabled_)
+  {
+    slock.onDestruct([this](const std::string& name, const ros::Time& start_time, const ros::Time& lock_time,
+                            const ros::Time& destruct_time) {
+      publishLockDiagnostics(name, "shared", start_time, lock_time - start_time, destruct_time - lock_time);
+    });
+  }
+  return slock;
+}
+
+void PlanningSceneMonitor::publishLockDiagnostics(const std::string& lock_source, const std::string& lock_type,
+                                                  const ros::Time& start_time, const ros::Duration& time_to_lock,
+                                                  const ros::Duration& locked_time)
+{
+  diagnostic_msgs::DiagnosticStatus status;
+  status.name = lock_source;
+  status.message = lock_type;
+  status.values.resize(3);
+  status.values[0].key = "start_time";
+  status.values[0].value = std::to_string((start_time).toNSec());
+  status.values[1].key = "time_to_lock";
+  status.values[1].value = std::to_string((time_to_lock).toNSec());
+  status.values[2].key = "locked_time";
+  status.values[2].value = std::to_string((locked_time).toNSec());
+  lock_status_pub_.publish(status);
 }
 
 void PlanningSceneMonitor::startWorldGeometryMonitor(const std::string& collision_objects_topic,
@@ -1240,7 +1302,7 @@ void PlanningSceneMonitor::octomapUpdateCallback()
 
   updateFrameTransforms();
   {
-    boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+    auto ulock = acquireUniqueLock("octomapUpdateCallback()");
     last_update_time_ = ros::Time::now();
     octomap_monitor_->getOcTreePtr()->lockRead();
     try
@@ -1296,7 +1358,7 @@ void PlanningSceneMonitor::updateSceneWithCurrentState()
     }
 
     {
-      boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+      auto ulock = acquireUniqueLock("updateSceneWithCurrentState()");
       last_update_time_ = last_robot_motion_time_ = current_state_monitor_->getCurrentStateTime();
       ROS_DEBUG_STREAM_NAMED(LOGNAME, "robot state update " << fmod(last_robot_motion_time_.toSec(), 10.));
       current_state_monitor_->setToCurrentState(scene_->getCurrentStateNonConst());
@@ -1367,7 +1429,7 @@ void PlanningSceneMonitor::updateFrameTransforms()
     std::vector<geometry_msgs::TransformStamped> transforms;
     getUpdatedFrameTransforms(transforms);
     {
-      boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
+      auto ulock = acquireUniqueLock("updateFrameTransforms()");
       scene_->getTransformsNonConst().setTransforms(transforms);
       last_update_time_ = ros::Time::now();
     }
