@@ -52,6 +52,11 @@
 
 #include <memory>
 
+namespace
+{
+constexpr double DEFAULT_PLANNING_SCENE_PUBLISH_FREQUENCY = 30.0; // Hz
+}  // namespace
+
 namespace planning_scene_monitor
 {
 using namespace moveit_ros_planning;
@@ -139,7 +144,7 @@ PlanningSceneMonitor::PlanningSceneMonitor(const robot_model_loader::RobotModelL
 PlanningSceneMonitor::PlanningSceneMonitor(const planning_scene::PlanningScenePtr& scene,
                                            const robot_model_loader::RobotModelLoaderPtr& rm_loader,
                                            const std::shared_ptr<tf2_ros::Buffer>& tf_buffer, const std::string& name)
-  : monitor_name_(name), nh_("~"), tf_buffer_(tf_buffer), rm_loader_(rm_loader)
+  : monitor_name_(name), nh_("~"), tf_buffer_(tf_buffer), rm_loader_(rm_loader), publish_planning_scene_frequency_(DEFAULT_PLANNING_SCENE_PUBLISH_FREQUENCY), publish_planning_scene_frequency_updated_(false)
 {
   root_nh_.setCallbackQueue(&queue_);
   nh_.setCallbackQueue(&queue_);
@@ -152,7 +157,7 @@ PlanningSceneMonitor::PlanningSceneMonitor(const planning_scene::PlanningScenePt
                                            const robot_model_loader::RobotModelLoaderPtr& rm_loader,
                                            const ros::NodeHandle& nh, const std::shared_ptr<tf2_ros::Buffer>& tf_buffer,
                                            const std::string& name)
-  : monitor_name_(name), nh_("~"), root_nh_(nh), tf_buffer_(tf_buffer), rm_loader_(rm_loader)
+  : monitor_name_(name), nh_("~"), root_nh_(nh), tf_buffer_(tf_buffer), rm_loader_(rm_loader), publish_planning_scene_frequency_(DEFAULT_PLANNING_SCENE_PUBLISH_FREQUENCY), publish_planning_scene_frequency_updated_(false)
 {
   // use same callback queue as root_nh_
   nh_.setCallbackQueue(root_nh_.getCallbackQueue());
@@ -239,7 +244,6 @@ void PlanningSceneMonitor::initialize(const planning_scene::PlanningScenePtr& sc
     ROS_ERROR_NAMED(LOGNAME, "Robot model not loaded");
   }
 
-  publish_planning_scene_frequency_ = 2.0;
   new_scene_update_ = UPDATE_NONE;
 
   last_update_time_ = last_robot_motion_time_ = ros::Time::now();
@@ -354,12 +358,12 @@ void PlanningSceneMonitor::scenePublishingThread()
     ROS_DEBUG_NAMED(LOGNAME, "Published the full planning scene: '%s'", msg.name.c_str());
   }
 
+  ros::Rate rate(publish_planning_scene_frequency_);
   do
   {
     moveit_msgs::PlanningScene msg;
     bool publish_msg = false;
     bool is_full = false;
-    ros::Rate rate(publish_planning_scene_frequency_);
     {
       boost::unique_lock<boost::shared_mutex> ulock(scene_update_mutex_);
       while (new_scene_update_ == UPDATE_NONE && publish_planning_scene_)
@@ -421,6 +425,11 @@ void PlanningSceneMonitor::scenePublishingThread()
       planning_scene_publisher_.publish(msg);
       if (is_full)
         ROS_DEBUG_NAMED(LOGNAME, "Published full planning scene: '%s'", msg.name.c_str());
+      if(publish_planning_scene_frequency_updated_) {
+        ROS_DEBUG_STREAM_NAMED(LOGNAME, "Updating planning scene publish frequency to " << publish_planning_scene_frequency_);
+        rate = ros::Rate(publish_planning_scene_frequency_);
+        publish_planning_scene_frequency_updated_ = false;
+      }
       rate.sleep();
     }
   } while (publish_planning_scene_);
@@ -1324,8 +1333,10 @@ void PlanningSceneMonitor::clearUpdateCallbacks()
 void PlanningSceneMonitor::setPlanningScenePublishingFrequency(double hz)
 {
   publish_planning_scene_frequency_ = hz;
-  ROS_DEBUG_NAMED(LOGNAME, "Maximum frequency for publishing a planning scene is now %lf Hz",
-                  publish_planning_scene_frequency_);
+  publish_planning_scene_frequency_updated_ = true;
+
+  ROS_DEBUG_STREAM_NAMED(LOGNAME, "Maximum frequency for publishing a planning scene is now "
+    << publish_planning_scene_frequency_ << " Hz");
 }
 
 void PlanningSceneMonitor::getUpdatedFrameTransforms(std::vector<geometry_msgs::TransformStamped>& transforms)

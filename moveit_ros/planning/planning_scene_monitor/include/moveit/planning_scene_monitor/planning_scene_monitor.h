@@ -49,6 +49,7 @@
 #include <boost/noncopyable.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <boost/thread/recursive_mutex.hpp>
+#include <atomic>
 #include <memory>
 
 namespace planning_scene_monitor
@@ -494,7 +495,8 @@ protected:
   // variables for planning scene publishing
   ros::Publisher planning_scene_publisher_;
   std::unique_ptr<boost::thread> publish_planning_scene_;
-  double publish_planning_scene_frequency_;
+  std::atomic<double> publish_planning_scene_frequency_;
+  std::atomic<bool> publish_planning_scene_frequency_updated_;
   SceneUpdateType publish_update_types_;
   SceneUpdateType new_scene_update_;
   boost::condition_variable_any new_scene_update_condition_;
