@@ -373,6 +373,25 @@ TEST_F(KinematicsTest, getFK)
   }
 }
 
+// Test that different poses are returned when querying FK with multiple intermediate frames
+TEST_F(KinematicsTest, getMultipleIntermediateFK)
+{
+  std::vector<double> joints(kinematics_solver_->getJointNames().size(), 0.0);
+  const std::vector<std::string>& link_names = jmg_->getLinkModelNames();
+  std::vector<geometry_msgs::Pose> fk_poses;
+  EXPECT_TRUE(kinematics_solver_->getPositionFK(link_names, joints, fk_poses));
+
+  moveit::core::RobotState robot_state(robot_model_);
+  robot_state.setJointGroupPositions(jmg_, joints);
+  robot_state.updateLinkTransforms();
+  std::vector<geometry_msgs::Pose> model_poses;
+  model_poses.reserve(link_names.size());
+  int i = 0;
+  for (const auto& frame : link_names)
+    model_poses.emplace_back(tf2::toMsg(robot_state.getGlobalLinkTransform(frame)));
+  EXPECT_NEAR_POSES(model_poses, fk_poses, tolerance_);
+}
+
 // perform random walk in joint-space, reaching poses via IK
 TEST_F(KinematicsTest, randomWalkIK)
 {

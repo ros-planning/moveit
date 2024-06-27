@@ -156,6 +156,9 @@ private:
   /// clip q_delta such that joint limits will not be violated
   void clipToJointLimits(const KDL::JntArray& q, KDL::JntArray& q_delta, Eigen::ArrayXd& weighting) const;
 
+  // Given a set of link names, returns their indices in the joint model group
+  std::vector<unsigned int> getLinkIndices(const std::vector<std::string> & link_names) const;
+
   bool initialized_;  ///< Internal variable that indicates whether solver is configured and ready
 
   unsigned int dimension_;                        ///< Dimension of the group
