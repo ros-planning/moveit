@@ -157,9 +157,10 @@ double CartesianInterpolator::computeCartesianPath(RobotState* start_state, cons
     Eigen::Isometry3d pose(start_quaternion.slerp(percentage, target_quaternion));
     pose.translation() = percentage * rotated_target.translation() + (1 - percentage) * start_pose.translation();
 
-    // Explicitly use a single IK attempt only: We want a smooth trajectory.
+    // Explicitly use a single IK attempt only (minimal timeout): We want a smooth trajectory.
     // Random seeding (of additional attempts) would probably create IK jumps.
-    if (start_state->setFromIK(group, pose * offset, link->getName(), consistency_limits, 0.0, validCallback, options))
+    if (start_state->setFromIK(group, pose * offset, link->getName(), consistency_limits,
+                               std::numeric_limits<double>::epsilon(), validCallback, options))
       traj.push_back(std::make_shared<moveit::core::RobotState>(*start_state));
     else
       break;
