@@ -155,9 +155,22 @@ TYPED_TEST_P(CollisionDetectorPandaTest, RobotWorldCollision_1)
   ASSERT_TRUE(res.collision);
   res.clear();
 
+  pos1.translation().z() = 0.25;
+  this->cenv_->getWorld()->moveObject("box", pos1);
+  this->cenv_->checkRobotCollision(req, res, *this->robot_state_, *this->acm_);
+  ASSERT_FALSE(res.collision);
+  res.clear();
+
+  pos1.translation().z() = 0.05;
   this->cenv_->getWorld()->moveObject("box", pos1);
   this->cenv_->checkRobotCollision(req, res, *this->robot_state_, *this->acm_);
   ASSERT_TRUE(res.collision);
+  res.clear();
+
+  pos1.translation().z() = 0.25;
+  this->cenv_->getWorld()->moveObject("box", pos1);
+  this->cenv_->checkRobotCollision(req, res, *this->robot_state_, *this->acm_);
+  ASSERT_FALSE(res.collision);
   res.clear();
 
   this->cenv_->getWorld()->moveObject("box", pos1);
