@@ -103,7 +103,7 @@ bool moveCartesianPath(const geometry_msgs::PoseStamped& pose, moveit::planning_
   std::vector<geometry_msgs::Pose> waypoints;
   waypoints.push_back(pose.pose);
   moveit_msgs::RobotTrajectory trajectory;
-  double percent = group.computeCartesianPath(waypoints, 0.01, 0, trajectory, true);
+  double percent = group.computeCartesianPath(waypoints, 0.01, trajectory, true);
   if (percent == 1.0)
   {
     group.execute(trajectory);

@@ -60,7 +60,7 @@ class PythonTimeParameterizationTest(unittest.TestCase):
         goal_pose = self.group.get_current_pose().pose
         goal_pose.position.z -= 0.1
         (plan, fraction) = self.group.compute_cartesian_path(
-            [start_pose, goal_pose], 0.005, 0.0
+            [start_pose, goal_pose], 0.005
         )
         self.assertEqual(fraction, 1.0, "Cartesian path plan failed")
         return plan

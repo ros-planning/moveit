@@ -246,14 +246,16 @@ protected:
                               bool global)
   {
     return CartesianInterpolator::computeCartesianPath(start_state_.get(), jmg_, result, link_, translation, global,
-                                                       MaxEEFStep(0.1), JumpThreshold(), GroupStateValidityCallbackFn(),
+                                                       MaxEEFStep(0.1), CartesianPrecision{},
+                                                       GroupStateValidityCallbackFn(),
                                                        kinematics::KinematicsQueryOptions());
   }
   double computeCartesianPath(std::vector<std::shared_ptr<RobotState>>& result, const Eigen::Isometry3d& target,
                               bool global, const Eigen::Isometry3d& offset = Eigen::Isometry3d::Identity())
   {
     return CartesianInterpolator::computeCartesianPath(start_state_.get(), jmg_, result, link_, target, global,
-                                                       MaxEEFStep(0.1), JumpThreshold(), GroupStateValidityCallbackFn(),
+                                                       MaxEEFStep(0.1), CartesianPrecision{ 0.01, 0.01 },
+                                                       GroupStateValidityCallbackFn(),
                                                        kinematics::KinematicsQueryOptions(), offset);
   }
 
