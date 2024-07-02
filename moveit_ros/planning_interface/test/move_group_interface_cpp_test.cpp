@@ -238,6 +238,10 @@ TEST_F(MoveGroupTestFixture, PathConstraintCollisionTest)
 
   // clear path constraints
   move_group_->clearPathConstraints();
+
+  // move back to ready pose
+  move_group_->setNamedTarget("ready");
+  planAndMove();
 }
 
 TEST_F(MoveGroupTestFixture, ModifyPlanningSceneAsyncInterfaces)
