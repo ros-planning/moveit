@@ -648,7 +648,6 @@ class MoveGroupCommander(object):
         self,
         waypoints,
         eef_step,
-        jump_threshold,
         avoid_collisions=True,
         path_constraints=None,
     ):
@@ -670,7 +669,6 @@ class MoveGroupCommander(object):
             (ser_path, fraction) = self._g.compute_cartesian_path(
                 [conversions.pose_to_list(p) for p in waypoints],
                 eef_step,
-                jump_threshold,
                 avoid_collisions,
                 constraints_str,
             )
@@ -678,7 +676,6 @@ class MoveGroupCommander(object):
             (ser_path, fraction) = self._g.compute_cartesian_path(
                 [conversions.pose_to_list(p) for p in waypoints],
                 eef_step,
-                jump_threshold,
                 avoid_collisions,
             )
 

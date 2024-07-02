@@ -238,6 +238,10 @@ TEST_F(MoveGroupTestFixture, PathConstraintCollisionTest)
 
   // clear path constraints
   move_group_->clearPathConstraints();
+
+  // move back to ready pose
+  move_group_->setNamedTarget("ready");
+  planAndMove();
 }
 
 TEST_F(MoveGroupTestFixture, ModifyPlanningSceneAsyncInterfaces)
@@ -311,11 +315,10 @@ TEST_F(MoveGroupTestFixture, CartPathTest)
   waypoints.push_back(target_waypoint);  // up and left
 
   moveit_msgs::RobotTrajectory trajectory;
-  const auto jump_threshold = 0.0;
   const auto eef_step = 0.01;
 
   // test below is meaningless if Cartesian planning did not succeed
-  ASSERT_GE(EPSILON + move_group_->computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory), 1.0);
+  ASSERT_GE(EPSILON + move_group_->computeCartesianPath(waypoints, eef_step, trajectory), 1.0);
 
   // Execute trajectory
   EXPECT_EQ(move_group_->execute(trajectory), moveit::core::MoveItErrorCode::SUCCESS);

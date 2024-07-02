@@ -71,5 +71,5 @@ if __name__ == "__main__":
     wpose.position.y += 0.05
     waypoints.append(wpose)
 
-    plan, fraction = a.compute_cartesian_path(waypoints, 0.01, 0.0, path_constraints=c)
+    plan, fraction = a.compute_cartesian_path(waypoints, 0.01, True, path_constraints=c)
     print("Plan success percent: ", fraction)

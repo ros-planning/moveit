@@ -493,24 +493,22 @@ public:
     return py_bindings_tools::serializeMsg(request);
   }
 
-  bp::tuple computeCartesianPathPython(const bp::list& waypoints, double eef_step, double jump_threshold,
-                                       bool avoid_collisions)
+  bp::tuple computeCartesianPathPython(const bp::list& waypoints, double eef_step, bool avoid_collisions)
   {
     moveit_msgs::Constraints path_constraints_tmp;
-    return doComputeCartesianPathPython(waypoints, eef_step, jump_threshold, avoid_collisions, path_constraints_tmp);
+    return doComputeCartesianPathPython(waypoints, eef_step, avoid_collisions, path_constraints_tmp);
   }
 
-  bp::tuple computeCartesianPathConstrainedPython(const bp::list& waypoints, double eef_step, double jump_threshold,
-                                                  bool avoid_collisions,
+  bp::tuple computeCartesianPathConstrainedPython(const bp::list& waypoints, double eef_step, bool avoid_collisions,
                                                   const py_bindings_tools::ByteString& path_constraints_str)
   {
     moveit_msgs::Constraints path_constraints;
     py_bindings_tools::deserializeMsg(path_constraints_str, path_constraints);
-    return doComputeCartesianPathPython(waypoints, eef_step, jump_threshold, avoid_collisions, path_constraints);
+    return doComputeCartesianPathPython(waypoints, eef_step, avoid_collisions, path_constraints);
   }
 
-  bp::tuple doComputeCartesianPathPython(const bp::list& waypoints, double eef_step, double jump_threshold,
-                                         bool avoid_collisions, const moveit_msgs::Constraints& path_constraints)
+  bp::tuple doComputeCartesianPathPython(const bp::list& waypoints, double eef_step, bool avoid_collisions,
+                                         const moveit_msgs::Constraints& path_constraints)
   {
     std::vector<geometry_msgs::Pose> poses;
     convertListToArrayOfPoses(waypoints, poses);
@@ -518,7 +516,7 @@ public:
     double fraction;
     {
       GILReleaser gr;
-      fraction = computeCartesianPath(poses, eef_step, jump_threshold, trajectory, path_constraints, avoid_collisions);
+      fraction = computeCartesianPath(poses, eef_step, trajectory, path_constraints, avoid_collisions);
     }
     return bp::make_tuple(py_bindings_tools::serializeMsg(trajectory), fraction);
   }

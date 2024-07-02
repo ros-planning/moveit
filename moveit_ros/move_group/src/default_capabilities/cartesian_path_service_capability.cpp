@@ -158,14 +158,14 @@ bool MoveGroupCartesianPathService::computeService(moveit_msgs::GetCartesianPath
           }
           ROS_INFO_NAMED(getName(),
                          "Attempting to follow %u waypoints for link '%s' using a step of %lf m "
-                         "and jump threshold %lf (in %s reference frame)",
-                         (unsigned int)waypoints.size(), link_name.c_str(), req.max_step, req.jump_threshold,
+                         "(in %s reference frame)",
+                         (unsigned int)waypoints.size(), link_name.c_str(), req.max_step,
                          global_frame ? "global" : "link");
 
           std::vector<moveit::core::RobotStatePtr> traj;
           res.fraction = moveit::core::CartesianInterpolator::computeCartesianPath(
               &start_state, jmg, traj, link_model, waypoints, global_frame, moveit::core::MaxEEFStep(req.max_step),
-              moveit::core::JumpThreshold(req.jump_threshold), constraint_fn, kinematics::KinematicsQueryOptions(),
+              moveit::core::CartesianPrecision{}, constraint_fn, kinematics::KinematicsQueryOptions(),
               start_state.getGlobalLinkTransform(link_model).inverse() * frame_pose);
           moveit::core::robotStateToRobotStateMsg(start_state, res.start_state);
 
